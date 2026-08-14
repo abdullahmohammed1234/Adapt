@@ -6,13 +6,16 @@ from adapt.adaptation.challenge_selector import ChallengeSelector
 from adapt.analysis.evidence_analyzer import EvidenceAnalyzer
 from adapt.baseline.baseline_tutor import BaselineTutor
 from adapt.models.learner_state import initial_learner_state
+from adapt.models.strategy import initial_strategy_state
 from adapt.pipeline import AdaptPipeline
 from adapt.state.state_updater import StateUpdater
+from adapt.strategy.engine import AdaptiveStrategyEngine
 from adapt.trace.decision_trace import DecisionTrace
 
 __all__ = [
     "AdaptPipeline",
     "AdaptationEngine",
+    "AdaptiveStrategyEngine",
     "BaselineTutor",
     "CHALLENGE_BANK",
     "CONCEPT_ID",
@@ -22,4 +25,5 @@ __all__ = [
     "StateUpdater",
     "get_challenge",
     "initial_learner_state",
+    "initial_strategy_state",
 ]
