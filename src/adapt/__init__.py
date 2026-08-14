@@ -11,11 +11,14 @@ from adapt.pipeline import AdaptPipeline
 from adapt.state.state_updater import StateUpdater
 from adapt.strategy.engine import AdaptiveStrategyEngine
 from adapt.trace.decision_trace import DecisionTrace
+from adapt.tutor.tutor import AdaptiveTutor
+from adapt.tutor.session import TutorSession, StepTrace
 
 __all__ = [
     "AdaptPipeline",
     "AdaptationEngine",
     "AdaptiveStrategyEngine",
+    "AdaptiveTutor",
     "BaselineTutor",
     "CHALLENGE_BANK",
     "CONCEPT_ID",
@@ -23,6 +26,8 @@ __all__ = [
     "DecisionTrace",
     "EvidenceAnalyzer",
     "StateUpdater",
+    "StepTrace",
+    "TutorSession",
     "get_challenge",
     "initial_learner_state",
     "initial_strategy_state",
