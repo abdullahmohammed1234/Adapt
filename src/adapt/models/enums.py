@@ -84,6 +84,19 @@ class AdaptationAction(str, Enum):
     GATHER_MORE_EVIDENCE = "GATHER_MORE_EVIDENCE"
 
 
+class StrategyName(str, Enum):
+    """Instructional strategy. Distinct from learner mastery and from AdaptationAction."""
+
+    ASSESS = "ASSESS"
+    PROBE = "PROBE"
+    MAINTAIN = "MAINTAIN"
+    INCREASE = "INCREASE"
+    DECREASE = "DECREASE"
+    REMEDIATE = "REMEDIATE"
+    RECOVER = "RECOVER"
+    GATHER_EVIDENCE = "GATHER_EVIDENCE"
+
+
 class Difficulty(str, Enum):
     EASY = "EASY"
     MEDIUM = "MEDIUM"

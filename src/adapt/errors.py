@@ -27,3 +27,11 @@ class MissingChallengeError(AdaptError):
 
 class InvalidAdaptationDecisionError(AdaptError):
     """Adaptation decision is missing, unknown, or lacks an evidence trail."""
+
+
+class InvalidStrategyStateError(AdaptError):
+    """Strategy state is missing required fields or has out-of-range values."""
+
+
+class InvalidStrategyDecisionError(AdaptError):
+    """Strategy decision is missing, unknown, or lacks an evidence trail."""
