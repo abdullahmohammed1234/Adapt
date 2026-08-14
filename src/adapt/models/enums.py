@@ -107,6 +107,10 @@ class ChallengeType(str, Enum):
     PRACTICE = "PRACTICE"
     DIAGNOSTIC = "DIAGNOSTIC"
     REMEDIATION = "REMEDIATION"
+    STANDARD = "STANDARD"
+    PROBE = "PROBE"
+    TRANSFER = "TRANSFER"
+    INCREASED_DIFFICULTY = "INCREASED_DIFFICULTY"
 
 
 class EvidencePolarity(str, Enum):

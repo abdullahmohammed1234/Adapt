@@ -35,3 +35,11 @@ class InvalidStrategyStateError(AdaptError):
 
 class InvalidStrategyDecisionError(AdaptError):
     """Strategy decision is missing, unknown, or lacks an evidence trail."""
+
+
+class InvalidSessionError(AdaptError):
+    """Tutor session is missing, malformed, or cannot be restored."""
+
+
+class SessionNotFoundError(InvalidSessionError):
+    """Requested tutor session does not exist."""
