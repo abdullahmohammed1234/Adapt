@@ -36,9 +36,10 @@ def _json_bytes(payload: Any, *, status: int = 200) -> tuple[int, bytes, str]:
 
 
 class AdaptHandler(BaseHTTPRequestHandler):
-    server_version = "ADAPT/4"
+    server_version = "ADAPT/6"
 
     def log_message(self, format: str, *args: Any) -> None:
+        _ = (format, args)
         return
 
     def do_OPTIONS(self) -> None:  # noqa: N802
@@ -57,6 +58,14 @@ class AdaptHandler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:  # noqa: N802
         parsed = urlparse(self.path)
         length = int(self.headers.get("Content-Length") or 0)
+        if length > 250_000:
+            self._write(
+                *_json_bytes(
+                    {"error": "invalid_response", "message": "Request is too large."},
+                    status=400,
+                )
+            )
+            return
         raw = self.rfile.read(length) if length else b""
         payload: Any = {}
         if raw:
@@ -78,9 +87,12 @@ class AdaptHandler(BaseHTTPRequestHandler):
             )
             self._write(status, body, "application/json; charset=utf-8")
             return
-        except Exception as exc:  # pragma: no cover - last-resort guard
+        except Exception:  # pragma: no cover - last-resort guard
             status, body, _ctype = _json_bytes(
-                {"error": "submission_error", "message": str(exc)},
+                {
+                    "error": "submission_error",
+                    "message": "ADAPT could not process that request. Please try again.",
+                },
                 status=500,
             )
             self._write(status, body, "application/json; charset=utf-8")
@@ -96,7 +108,17 @@ class AdaptHandler(BaseHTTPRequestHandler):
         query: dict[str, list[str]],
     ) -> tuple[int, bytes]:
         if method == "GET" and path == "/api/health":
-            return _json_bytes({"ok": True, "service": "adapt-phase4"})[:2]
+            return _json_bytes(
+                {
+                    "ok": True,
+                    "service": "adapt",
+                    "offline": True,
+                    "requires_api_key": False,
+                    "seed": service.seed,
+                }
+            )[:2]
+        if method == "GET" and path == "/api/content":
+            return _json_bytes(service.content())[:2]
         if method == "GET" and path == "/api/topics":
             return _json_bytes({"topics": service.list_topics()})[:2]
         if method == "POST" and path == "/api/sessions":
@@ -139,6 +161,8 @@ class AdaptHandler(BaseHTTPRequestHandler):
                 return _json_bytes(service.get_story(session_id))[:2]
             if method == "POST" and rest == ["snapshot"]:
                 return _json_bytes(service.snapshot(session_id))[:2]
+            if method == "POST" and rest == ["reset"]:
+                return _json_bytes(service.reset_session(session_id))[:2]
         if method == "POST" and len(parts) == 4 and parts[:2] == ["api", "demo"] and parts[3] == "step":
             return _json_bytes(service.demo_step(parts[2]))[:2]
         _ = query

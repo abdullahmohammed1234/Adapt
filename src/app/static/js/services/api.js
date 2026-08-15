@@ -60,4 +60,17 @@ export const api = {
       body: JSON.stringify({}),
     });
   },
+  content() {
+    return request("/api/content");
+  },
+  health() {
+    return request("/api/health");
+  },
+  reset(id) {
+    return request(`/api/sessions/${encodeURIComponent(id)}/reset`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({}),
+    });
+  },
 };

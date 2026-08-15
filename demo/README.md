@@ -1,10 +1,8 @@
-# ADAPT Phase 4 judging demonstration
+# ADAPT judging demonstration
 
-This is the 2–3 minute product demo. It uses **predefined responses** and the **actual Phase 3 AdaptiveTutor**. The UI and `ProductService` never decide the next challenge themselves.
+The product demo is offline-first and uses the **actual** `AdaptiveTutor`. Demo inputs are scripted; displayed strategies are not.
 
-## Start the product
-
-From the repository root:
+## Start
 
 ```bash
 python -m app
@@ -12,30 +10,24 @@ python -m app
 
 Open [http://127.0.0.1:8765](http://127.0.0.1:8765).
 
-## Live judging path (about 2–3 minutes)
-
-1. Click **Watch a 2-minute demo**.
-2. Leave **Research view** on.
-3. Watch the scripted learner:
-   - strong reasoning → difficulty increases
-   - weak reasoning / low confidence → probe
-   - misconception → remediation
-   - recovery → ADAPT moves forward
-4. Open **View Adaptation** on the summary.
-5. From the landing page, click **See a counterfactual**.
-
-   Same starting challenge. Learner A: correct + strong reasoning + high confidence. Learner B: correct + weak reasoning + low confidence. The two **final strategies and next challenges are computed by the engine**, not hardcoded.
-
-## Reproduce without the browser
+## Commands
 
 ```bash
 python demo/run_demo.py
+python demo/run_competition_demo.py
 ```
 
-This runs the same `demo/scenario.json` through `ProductService` (the application boundary) and prints evidence → state → strategy → challenge for each step.
+`run_competition_demo.py` prints the guided path and the counterfactual, and checks that displayed decisions equal engine decisions.
 
-## What not to do
+## Live path
 
-- Do not edit Phase 1E / 1F / 2 / 3 historical results.
-- Do not add frontend rules such as “if correct, increase difficulty”.
-- Do not treat this demo’s *inputs* as a claim that every learner will see the same path. The path is determined by the frozen engine given these responses.
+1. Landing: promise + How it adapts chain.
+2. **Watch the demo** or **Try ADAPT**.
+3. Leave **Research view** on.
+4. After a submit, read the adaptation card. It is generated from the trace.
+5. **Counterfactual**: same start, two real engine runs.
+6. Architecture / Evidence / Limitations pages are in the header.
+
+Demo scenarios are labeled **DEMO SCENARIO**. They are not human study results.
+
+Phase 5 human learning evaluation: INCONCLUSIVE (n=0).
