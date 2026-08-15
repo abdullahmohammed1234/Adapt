@@ -24,7 +24,7 @@ def scripted_submit(service: ProductService, session_id: str, kind: str) -> dict
     if session.get("complete") or not session.get("challenge"):
         raise SessionCompleteError("This session is complete.")
     challenge_id = session["challenge"]["challenge_id"]
-    tutor_session = service.tutor.get_session(session_id)
+    tutor_session = service.engine_session(session_id)
     response = build_scripted_response(
         tutor_session.current_challenge,
         kind,

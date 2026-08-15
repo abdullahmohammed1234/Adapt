@@ -339,4 +339,12 @@ def concept_label(concept_id: str) -> str:
     topic = topic_for_concept(concept_id)
     if topic is not None:
         return topic.name
+    try:
+        from adapt.content.catalog import CATALOG
+
+        label = CATALOG.concept_label(concept_id)
+        if label != concept_id:
+            return label
+    except Exception:
+        pass
     return CONCEPT_LABELS.get(concept_id, concept_id)

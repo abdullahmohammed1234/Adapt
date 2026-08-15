@@ -36,7 +36,7 @@ def _json_bytes(payload: Any, *, status: int = 200) -> tuple[int, bytes, str]:
 
 
 class AdaptHandler(BaseHTTPRequestHandler):
-    server_version = "ADAPT/6"
+    server_version = "ADAPT/7"
 
     def log_message(self, format: str, *args: Any) -> None:
         _ = (format, args)
@@ -121,6 +121,11 @@ class AdaptHandler(BaseHTTPRequestHandler):
             return _json_bytes(service.content())[:2]
         if method == "GET" and path == "/api/topics":
             return _json_bytes({"topics": service.list_topics()})[:2]
+        if method == "GET" and path == "/api/subjects":
+            return _json_bytes({"subjects": service.list_subjects()})[:2]
+        if method == "GET" and path.startswith("/api/subjects/"):
+            subject_id = path.rstrip("/").split("/")[-1]
+            return _json_bytes(service.get_subject(subject_id))[:2]
         if method == "POST" and path == "/api/sessions":
             view = service.create_session(
                 topic_id=str(payload.get("topic_id") or ""),
@@ -129,6 +134,7 @@ class AdaptHandler(BaseHTTPRequestHandler):
                 mode=str(payload.get("mode") or "learner"),
                 session_id=payload.get("session_id"),
                 initial_challenge=payload.get("initial_challenge"),
+                subject_id=payload.get("subject_id"),
             )
             return _json_bytes(view, status=201)[:2]
         if method == "POST" and path == "/api/sessions/restore":
@@ -151,6 +157,8 @@ class AdaptHandler(BaseHTTPRequestHandler):
                         confidence=payload.get("confidence"),
                         reasoning=payload.get("reasoning"),
                         challenge_id=payload.get("challenge_id"),
+                        approach=payload.get("approach"),
+                        explanation=payload.get("explanation"),
                     )
                 )[:2]
             if method == "GET" and rest == ["trace"]:
@@ -159,6 +167,12 @@ class AdaptHandler(BaseHTTPRequestHandler):
                 return _json_bytes(service.get_summary(session_id))[:2]
             if method == "GET" and rest == ["story"]:
                 return _json_bytes(service.get_story(session_id))[:2]
+            if method == "GET" and rest == ["progress"]:
+                return _json_bytes(service.get_progress(session_id))[:2]
+            if method == "GET" and rest == ["insights"]:
+                return _json_bytes(service.get_insights(session_id))[:2]
+            if method == "GET" and rest == ["journey"]:
+                return _json_bytes(service.get_journey(session_id))[:2]
             if method == "POST" and rest == ["snapshot"]:
                 return _json_bytes(service.snapshot(session_id))[:2]
             if method == "POST" and rest == ["reset"]:
