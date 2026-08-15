@@ -12,8 +12,14 @@ dependencies = []
 [project.optional-dependencies]
 dev = ["pytest>=8.0.0"]
 
+[project.scripts]
+adapt-app = "app.__main__:main"
+
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+app = ["static/**/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
