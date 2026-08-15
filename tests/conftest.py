@@ -2,6 +2,18 @@
 
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
+# `python -m pytest` puts the repo root on sys.path[0], so the launcher package
+# `app/` shadows `src/app`. Prefer src so Phase 4 `from app.server` resolves.
+_SRC = str(Path(__file__).resolve().parents[1] / "src")
+if _SRC in sys.path:
+    sys.path.remove(_SRC)
+sys.path.insert(0, _SRC)
+for _name in [key for key in list(sys.modules) if key == "app" or key.startswith("app.")]:
+    del sys.modules[_name]
+
 
 def pytest_terminal_summary(terminalreporter, exitstatus, config) -> None:
     stats = terminalreporter.stats
