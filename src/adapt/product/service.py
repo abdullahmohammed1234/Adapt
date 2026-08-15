@@ -18,6 +18,7 @@ from adapt.errors import (
     InvalidSessionError,
     SessionNotFoundError,
 )
+from adapt.content.catalog import CATALOG
 from adapt.product.confidence import scale_options, to_engine_confidence
 from adapt.product.content import product_content
 from adapt.product.counterfactual import default_counterfactual
@@ -29,6 +30,17 @@ from adapt.product.errors import (
     SessionUnavailableError,
     SubmissionError,
 )
+from adapt.product.experience import (
+    attempt_from_step,
+    combine_reasoning,
+    evidence_plan,
+    learner_progress_view,
+    public_challenge,
+    session_insights,
+    session_journey,
+    what_adapt_noticed,
+    why_this_question,
+)
 from adapt.product.labels import (
     DEMO_SCENARIO_LABEL,
     PROMISE_SHORT,
@@ -38,15 +50,15 @@ from adapt.product.labels import (
 from adapt.product.present import (
     adaptation_from_step,
     chain_link,
-    challenge_view,
     feedback_from_evidence,
     timeline_from_session,
     understanding_view,
 )
 from adapt.product.story import adaptation_story
 from adapt.product.summary import session_summary
-from adapt.product.topics import list_topics, require_topic, topic_for_concept
+from adapt.product.topics import TOPICS_BY_ID, list_topics, topic_for_concept
 from adapt.product.trace_explain import human_trace_explanation
+from adapt.selection.selector import Phase7ChallengeSelector
 from adapt.tutor.responses import build_scripted_response
 from adapt.tutor.tutor import DEFAULT_SEED, AdaptiveTutor
 
@@ -70,6 +82,11 @@ class ProductSession:
     demo_kinds: tuple[str, ...] = ()
     demo_index: int = 0
     demo_id: str | None = None
+    runtime: str = "core"
+    subject_id: str | None = None
+    learner_id: str | None = None
+    history: list[dict[str, Any]] = field(default_factory=list)
+    last_selection: dict[str, Any] | None = None
 
 
 class ProductService:
@@ -78,17 +95,68 @@ class ProductService:
     def __init__(self, *, tutor: AdaptiveTutor | None = None, seed: int = DEFAULT_SEED) -> None:
         self.seed = int(seed)
         self.tutor = tutor or AdaptiveTutor(seed=self.seed)
+        self._experience_selector = Phase7ChallengeSelector(catalog=CATALOG)
+        self._experience_tutor = AdaptiveTutor(
+            bank=CATALOG.engine_bank,
+            selector=self._experience_selector,
+            seed=self.seed,
+        )
         self._meta: dict[str, ProductSession] = {}
+        self._progress: dict[str, dict[str, float]] = {}
         self._lock = RLock()
 
     def list_topics(self) -> list[dict[str, Any]]:
         return list_topics()
 
+    def list_subjects(self) -> list[dict[str, Any]]:
+        return CATALOG.list_subjects()
+
+    def get_subject(self, subject_id: str, *, learner_id: str | None = None) -> dict[str, Any]:
+        subject = CATALOG.subject(subject_id)
+        if subject is None:
+            raise InvalidResponseError(f"unsupported subject: {subject_id}")
+        learner_mastery = dict(self._progress.get(learner_id or "", {}) or {})
+        topics = []
+        for topic in CATALOG.topics_for_subject(subject_id):
+            values = [
+                learner_mastery[cid]
+                for cid in topic.concept_ids
+                if cid in learner_mastery
+            ]
+            topics.append(
+                topic.to_dict(
+                    mastery=sum(values) / len(values) if values else None,
+                    challenge_count=len(CATALOG.challenges_for_topic(topic.topic_id)),
+                )
+            )
+        concepts = [item.to_dict() for item in CATALOG.concepts_for_subject(subject_id)]
+        payload = subject.to_dict(concept_count=len(concepts), topic_count=len(topics))
+        payload["topics"] = topics
+        payload["concepts"] = concepts
+        return payload
+
     def confidence_scale(self) -> list[dict[str, int | str]]:
         return scale_options()
 
     def content(self) -> dict[str, Any]:
-        return product_content()
+        payload = product_content()
+        payload["catalog"] = CATALOG.metrics()
+        return payload
+
+    def _resolve_topic(self, topic_id: str):
+        if topic_id in TOPICS_BY_ID:
+            spec = CATALOG.topic(topic_id)
+            return TOPICS_BY_ID[topic_id], "core", spec
+        spec = CATALOG.topic(topic_id)
+        if spec is None:
+            raise InvalidResponseError(f"unsupported topic: {topic_id}")
+        runtime = "core" if spec.legacy else "experience"
+        return spec.as_topic(), runtime, spec
+
+    def _tutor_for(self, meta: ProductSession) -> AdaptiveTutor:
+        if meta.runtime == "experience":
+            return self._experience_tutor
+        return self.tutor
 
     def create_session(
         self,
@@ -99,13 +167,15 @@ class ProductService:
         mode: str = "learner",
         session_id: str | None = None,
         initial_challenge: str | None = None,
+        subject_id: str | None = None,
     ) -> dict[str, Any]:
-        topic = require_topic(topic_id)
+        topic, runtime, spec = self._resolve_topic(topic_id)
         resolved_learner = learner_id or f"learner-{uuid4().hex[:8]}"
         resolved_id = session_id or f"SES-{self.seed}-{uuid4().hex[:8]}"
         challenge_id = initial_challenge or topic.initial_challenge
+        tutor = self.tutor if runtime == "core" else self._experience_tutor
         try:
-            session = self.tutor.start_session(
+            session = tutor.start_session(
                 learner_id=resolved_learner,
                 concept_id=topic.concept_id,
                 session_id=resolved_id,
@@ -121,6 +191,9 @@ class ProductService:
             max_steps=max(1, int(max_steps)),
             mode=mode,
             created_at=_now(),
+            runtime=runtime,
+            subject_id=subject_id or (spec.subject_id if spec else None),
+            learner_id=resolved_learner,
         )
         with self._lock:
             self._meta[session.session_id] = meta
@@ -138,15 +211,21 @@ class ProductService:
         confidence: int | str | None,
         reasoning: str | None = None,
         challenge_id: str | None = None,
+        approach: str | None = None,
+        explanation: str | None = None,
     ) -> dict[str, Any]:
         with self._lock:
             session, meta = self._require(session_id)
+            tutor = self._tutor_for(meta)
             if session.step_number >= meta.max_steps:
                 raise SessionCompleteError("This session is complete.")
             if answer is None or not str(answer).strip():
                 raise InvalidResponseError("answer is required")
             if len(str(answer)) > MAX_TEXT_LENGTH:
                 raise InvalidResponseError("answer is too long")
+            combined = combine_reasoning(approach, explanation if explanation is not None else reasoning)
+            if combined is not None and len(combined) > MAX_TEXT_LENGTH:
+                raise InvalidResponseError("reasoning is too long")
             if reasoning is not None and len(str(reasoning)) > MAX_TEXT_LENGTH:
                 raise InvalidResponseError("reasoning is too long")
             engine_confidence = to_engine_confidence(confidence)
@@ -161,13 +240,15 @@ class ProductService:
             payload = {
                 "answer": str(answer).strip(),
                 "learner_confidence": engine_confidence.value,
-                "reasoning": None if reasoning is None else str(reasoning).strip() or None,
+                "reasoning": combined if combined is not None else (
+                    None if reasoning is None else str(reasoning).strip() or None
+                ),
                 "challenge_id": current.challenge_id,
                 "learner_id": session.learner_id,
                 "concept_id": session.concept_id,
             }
             try:
-                step = self.tutor.submit_response(session_id, payload)
+                step = tutor.submit_response(session_id, payload)
             except InvalidLearnerResponseError as exc:
                 raise InvalidResponseError(str(exc)) from exc
             except SessionNotFoundError as exc:
@@ -175,6 +256,14 @@ class ProductService:
             except AdaptError as exc:
                 raise SubmissionError(str(exc)) from exc
             meta.last_submission_key = submission_key
+            attempt = attempt_from_step(step, session_id=session_id)
+            meta.history.append(attempt.to_dict())
+            if meta.runtime == "experience" and self._experience_selector.last_result is not None:
+                meta.last_selection = self._experience_selector.last_result.to_dict()
+            learner_key = meta.learner_id or session.learner_id
+            self._progress.setdefault(learner_key, {})[step.state_after.concept_id] = (
+                step.state_after.mastery_estimate
+            )
         meta.analytics.append(
             {
                 "step": step.step_number,
@@ -196,9 +285,11 @@ class ProductService:
         session, meta = self._require(session_id)
         payload = session_summary(session, max_steps=meta.max_steps)
         payload["session_id"] = session.session_id
-        payload["topic"] = require_topic(meta.topic_id).to_dict()
+        payload["topic"] = self._resolve_topic(meta.topic_id)[0].to_dict()
         payload["complete"] = session.step_number >= meta.max_steps
         payload["story"] = adaptation_story(session)
+        payload["insights"] = session_insights(session)
+        payload["journey"] = session_journey(session)
         return payload
 
     def get_story(self, session_id: str) -> dict[str, Any]:
@@ -207,8 +298,9 @@ class ProductService:
 
     def snapshot(self, session_id: str) -> dict[str, Any]:
         session, meta = self._require(session_id)
+        tutor = self._tutor_for(meta)
         return {
-            "tutor": self.tutor.snapshot(session.session_id),
+            "tutor": tutor.snapshot(session.session_id),
             "product": {
                 "session_id": meta.session_id,
                 "topic_id": meta.topic_id,
@@ -220,17 +312,24 @@ class ProductService:
                 "demo_kinds": list(meta.demo_kinds),
                 "demo_index": meta.demo_index,
                 "demo_id": meta.demo_id,
+                "runtime": meta.runtime,
+                "subject_id": meta.subject_id,
+                "learner_id": meta.learner_id,
+                "history": list(meta.history),
+                "last_selection": meta.last_selection,
             },
         }
 
     def restore(self, snapshot: dict[str, Any]) -> dict[str, Any]:
         if not isinstance(snapshot, dict) or "tutor" not in snapshot or "product" not in snapshot:
             raise SessionUnavailableError("snapshot must contain tutor and product objects")
+        product = snapshot["product"]
+        runtime = str(product.get("runtime") or "core")
+        tutor = self.tutor if runtime == "core" else self._experience_tutor
         try:
-            session = self.tutor.restore(snapshot["tutor"])
+            session = tutor.restore(snapshot["tutor"])
         except InvalidSessionError as exc:
             raise SessionUnavailableError(str(exc)) from exc
-        product = snapshot["product"]
         meta = ProductSession(
             session_id=session.session_id,
             topic_id=str(product.get("topic_id") or "algebra"),
@@ -242,6 +341,11 @@ class ProductService:
             demo_kinds=tuple(product.get("demo_kinds") or ()),
             demo_index=int(product.get("demo_index") or 0),
             demo_id=product.get("demo_id"),
+            runtime=runtime,
+            subject_id=product.get("subject_id"),
+            learner_id=product.get("learner_id"),
+            history=list(product.get("history") or []),
+            last_selection=product.get("last_selection"),
         )
         with self._lock:
             self._meta[session.session_id] = meta
@@ -403,6 +507,11 @@ class ProductService:
             mode = "learner" if meta.mode == "research" else meta.mode
         return self.create_session(topic_id=topic_id, mode=mode)
 
+    def engine_session(self, session_id: str):
+        """Return the AdaptiveTutor session for this product session."""
+        session, _meta = self._require(session_id)
+        return session
+
     def engine_decision(self, session_id: str) -> str | None:
         """Expose the latest engine decision for preservation tests. Not used by UI logic."""
         session, _meta = self._require(session_id)
@@ -449,20 +558,25 @@ class ProductService:
         }
 
     def _require(self, session_id: str) -> tuple[Any, ProductSession]:
-        try:
-            session = self.tutor.get_session(session_id)
-        except SessionNotFoundError as exc:
-            raise SessionUnavailableError(str(exc)) from exc
         meta = self._meta.get(session_id)
         if meta is None:
+            try:
+                self.tutor.get_session(session_id)
+            except SessionNotFoundError as exc:
+                raise SessionUnavailableError(str(exc)) from exc
             raise SessionUnavailableError(f"unknown session: {session_id}")
+        tutor = self._tutor_for(meta)
+        try:
+            session = tutor.get_session(session_id)
+        except SessionNotFoundError as exc:
+            raise SessionUnavailableError(str(exc)) from exc
         return session, meta
 
     def _session_view(self, session, meta: ProductSession) -> dict[str, Any]:
         complete = session.step_number >= meta.max_steps
         unavailable = session.current_challenge.challenge_id == "UNAVAILABLE"
         last = session.traces[-1] if session.traces else None
-        topic = require_topic(meta.topic_id)
+        topic = self._resolve_topic(meta.topic_id)[0]
         status = "complete" if complete else "awaiting_answer"
         if unavailable and not complete:
             status = "challenge_unavailable"
@@ -492,41 +606,74 @@ class ProductService:
             },
             "challenge": None
             if complete
-            else challenge_view(session.current_challenge, include_answer=False),
+            else public_challenge(session.current_challenge, include_answer=False),
             "understanding": understanding_view(session.learner_state),
-            "last_result": None if last is None else self._public_step(last),
+            "last_result": None if last is None else self._public_step(last, meta),
             "complete": complete,
             "can_submit": not complete and not unavailable,
             "confidence_scale": scale_options(),
-            "reasoning_prompt": "How did you get your answer?",
+            "evidence_plan": evidence_plan(session, session.current_challenge),
+            "subject_id": meta.subject_id,
+            "runtime": meta.runtime,
+            "reasoning_prompt": "How did you get this?",
             "reasoning_help": (
                 "Your reasoning helps ADAPT understand what you know — "
                 "not just whether you got the answer right."
             ),
         }
+        plan = payload["evidence_plan"]
+        payload["reasoning_prompt"] = plan["reasoning_prompt"]
+        payload["reasoning_help"] = plan["reasoning_help"]
         if meta.mode == "demo":
             payload["demo_label"] = DEMO_SCENARIO_LABEL
         return payload
 
-    def _public_step(self, step) -> dict[str, Any]:
+    def _public_step(self, step, meta: ProductSession | None = None) -> dict[str, Any]:
+        selection = None if meta is None else meta.last_selection
         return {
             "step_number": step.step_number,
             "feedback": feedback_from_evidence(step.evidence),
             "adaptation": adaptation_from_step(step),
-            "next_challenge": challenge_view(step.next_challenge, include_answer=False),
+            "next_challenge": public_challenge(step.next_challenge, include_answer=False),
             "understanding": understanding_view(step.state_after),
             "learned_something": step.step_number == 1,
             "human_explanation": human_trace_explanation(step),
+            "noticed": what_adapt_noticed(step),
+            "why_this_question": why_this_question(step, selection=selection),
         }
 
     def _step_result_view(self, session, meta: ProductSession, *, include_research: bool) -> dict[str, Any]:
         view = self._session_view(session, meta)
         last = session.traces[-1]
-        view["result"] = self._public_step(last)
+        view["result"] = self._public_step(last, meta)
         if include_research:
             view["research"] = chain_link(last, include_answers=True)
         view["status"] = "showing_feedback" if not view["complete"] else "complete"
         return view
+
+    def get_progress(self, session_id: str | None = None, *, learner_id: str | None = None) -> dict[str, Any]:
+        subject_id = None
+        if session_id:
+            session, meta = self._require(session_id)
+            learner_id = learner_id or meta.learner_id or session.learner_id
+            subject_id = meta.subject_id
+            self._progress.setdefault(learner_id, {})[session.concept_id] = (
+                session.learner_state.mastery_estimate
+            )
+        mastery = dict(self._progress.get(learner_id or "", {}) or {})
+        if not mastery and session_id:
+            session, meta = self._require(session_id)
+            mastery = {session.concept_id: session.learner_state.mastery_estimate}
+            subject_id = meta.subject_id
+        return learner_progress_view(concept_mastery=mastery, subject_id=subject_id)
+
+    def get_insights(self, session_id: str) -> dict[str, Any]:
+        session, _meta = self._require(session_id)
+        return session_insights(session)
+
+    def get_journey(self, session_id: str) -> dict[str, Any]:
+        session, _meta = self._require(session_id)
+        return session_journey(session)
 
     def _trace_view(self, session, meta: ProductSession) -> dict[str, Any]:
         chain = [chain_link(step, include_answers=True) for step in session.traces]
@@ -548,4 +695,6 @@ class ProductService:
                 "trajectory": session.learner_state.learning_trajectory.value,
                 "strategy": session.strategy_state.current_strategy.value,
             },
+            "journey": session_journey(session),
+            "trace_complete": all(item["complete"] for item in chain) if chain else True,
         }

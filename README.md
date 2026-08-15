@@ -45,8 +45,8 @@ python -m app
 
 Open [http://127.0.0.1:8765](http://127.0.0.1:8765).
 
-- **Try ADAPT** — start a learner session (Algebra or Fractions).
-- **Watch the demo** — deterministic `DEMO SCENARIO` through the real engine.
+- **Try ADAPT** — choose a subject (Mathematics, Calculus, Computer Science, Physics, Chemistry, Space, Quantum) and start a session.
+- **Watch the demo** — deterministic `DEMO SCENARIO` through the real engine (Algebra).
 - **Counterfactual** — same starting point, different evidence, different decision.
 
 CLI reproduction of the guided demo:
@@ -104,7 +104,7 @@ Challenge Selector
 Next Challenge
 ```
 
-The application boundary is `ProductService` → `AdaptiveTutor`. Historical Phase 1–5 engine logic is frozen.
+The application boundary is `ProductService` → `AdaptiveTutor`. Historical Phase 1–5 engine logic is frozen. Phase 7 adds a content catalog, challenge history, and diversity-aware selector around that engine.
 
 ## Testing
 
@@ -126,7 +126,8 @@ python -m benchmarks.run_no_persist
 - Phase 4 formative usability study is incomplete (0 / 5 PENDING).
 - No claim of educational efficacy.
 - Heuristic, deterministic evidence analysis — not an LLM.
-- Limited concepts (algebra, fractions) and a small challenge bank.
+- Curated multi-domain catalog (not a complete curriculum).
+- Finite challenge bank; questions are not generated at runtime.
 
 ## Project Structure
 
@@ -142,10 +143,11 @@ adapt/
 │   ├── phase2/
 │   ├── phase3/
 │   ├── phase4/
-│   └── phase5/
+│   ├── phase5/
+│   └── phase7/
 ├── tests/
 ├── docs/
-│   ├── phase-1/ … phase-6/
+│   ├── phase-1/ … phase-7/
 │   └── competition/
 ├── results/            # historical benchmark artifacts (do not rewrite)
 ├── demo/

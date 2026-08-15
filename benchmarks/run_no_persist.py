@@ -23,6 +23,8 @@ from benchmarks.phase2.runner import run_benchmark as run_2
 from benchmarks.phase3.runner import run_benchmark as run_3
 from benchmarks.phase4.runner import run_benchmark as run_4
 from benchmarks.phase5.runner import run_benchmark as run_5
+from benchmarks.phase7.runner import print_summary as print_7
+from benchmarks.phase7.runner import run_benchmark as run_7
 
 
 def main() -> int:
@@ -56,7 +58,10 @@ def main() -> int:
     print("human n=", five.get("meta", {}).get("actual_human_participants"))
     print("H1", (human.get("interpretation") or {}).get("h1"))
     print("failures", five.get("failures"))
-    return 1 if five.get("failures") else 0
+    print("=== Phase 7 persist=False ===")
+    seven = run_7(persist=False)
+    print_7(seven)
+    return 1 if five.get("failures") or seven.get("failures") else 0
 
 
 if __name__ == "__main__":

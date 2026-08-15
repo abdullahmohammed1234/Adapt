@@ -1,4 +1,4 @@
-"""Phase 4 product layer — learner experience around AdaptiveTutor."""
+"""Phase 7 product layer — learner experience around AdaptiveTutor."""
 
 from adapt.product.service import ProductService
 from adapt.product.topics import TOPICS, list_topics

@@ -21,6 +21,12 @@ export const api = {
   topics() {
     return request("/api/topics");
   },
+  subjects() {
+    return request("/api/subjects");
+  },
+  subject(id) {
+    return request(`/api/subjects/${encodeURIComponent(id)}`);
+  },
   createSession(payload) {
     return request("/api/sessions", { method: "POST", headers, body: JSON.stringify(payload) });
   },
@@ -42,6 +48,15 @@ export const api = {
   },
   story(id) {
     return request(`/api/sessions/${encodeURIComponent(id)}/story`);
+  },
+  progress(id) {
+    return request(`/api/sessions/${encodeURIComponent(id)}/progress`);
+  },
+  insights(id) {
+    return request(`/api/sessions/${encodeURIComponent(id)}/insights`);
+  },
+  journey(id) {
+    return request(`/api/sessions/${encodeURIComponent(id)}/journey`);
   },
   startDemo() {
     return request("/api/demo", { method: "POST", headers, body: JSON.stringify({}) });

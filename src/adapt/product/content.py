@@ -158,15 +158,18 @@ LIMITATIONS = [
     },
     {
         "id": "concepts",
-        "title": "Limited concepts",
-        "detail": "Supported topics are Basic Algebra and Fractions only.",
+        "title": "Curated, not complete, curriculum",
+        "detail": (
+            "Phase 7 adds multiple domains with a curated challenge catalog. "
+            "This is not a complete course in any subject."
+        ),
     },
     {
         "id": "bank",
-        "title": "Small challenge bank",
+        "title": "Finite challenge catalog",
         "detail": (
-            "Next-challenge choice is constrained by a small frozen bank. "
-            "Unavailable items are surfaced rather than invented."
+            "Questions are authored in advance. ADAPT does not generate an unlimited "
+            "curriculum at runtime. Unavailable items are surfaced rather than invented."
         ),
     },
 ]
