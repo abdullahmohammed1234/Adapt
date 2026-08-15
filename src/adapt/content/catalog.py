@@ -20,13 +20,13 @@ _DOMAIN_MODULES = (
 )
 
 SUBJECTS: tuple[Subject, ...] = (
-    Subject("mathematics", "Mathematics", "📐", "Numbers, algebra, geometry, and trigonometry.", tuple(t.topic_id for t in mathematics.TOPICS)),
-    Subject("calculus", "Calculus", "∫", "Limits, derivatives, integrals, and rates.", tuple(t.topic_id for t in calculus.TOPICS)),
-    Subject("computer-science", "Computer Science", "💻", "Programs, structures, algorithms, and data.", tuple(t.topic_id for t in computer_science.TOPICS)),
-    Subject("physics", "Physics", "⚛", "Motion, forces, energy, and waves.", tuple(t.topic_id for t in physics.TOPICS)),
-    Subject("chemistry", "Chemistry", "🧪", "Atoms, bonds, reactions, and pH.", tuple(t.topic_id for t in chemistry.TOPICS)),
-    Subject("space", "Space", "🌌", "Planets, stars, galaxies, and orbits.", tuple(t.topic_id for t in space.TOPICS)),
-    Subject("quantum", "Quantum", "⚛", "Qubits, gates, entanglement, and algorithms.", tuple(t.topic_id for t in quantum.TOPICS)),
+    Subject("mathematics", "Mathematics", "📐", "Build fluency with numbers, algebra, geometry, and trigonometry.", tuple(t.topic_id for t in mathematics.TOPICS)),
+    Subject("calculus", "Calculus", "∫", "Make sense of limits, derivatives, integrals, and changing quantities.", tuple(t.topic_id for t in calculus.TOPICS)),
+    Subject("computer-science", "Computer Science", "💻", "Learn programs, data structures, algorithms, and how computers organize information.", tuple(t.topic_id for t in computer_science.TOPICS)),
+    Subject("physics", "Physics", "⚛", "Connect motion, forces, energy, and waves to how the physical world behaves.", tuple(t.topic_id for t in physics.TOPICS)),
+    Subject("chemistry", "Chemistry", "🧪", "Explore atoms, bonding, reactions, and how matter changes.", tuple(t.topic_id for t in chemistry.TOPICS)),
+    Subject("space", "Space", "🌌", "Compare planets, stars, galaxies, and the scale of the universe.", tuple(t.topic_id for t in space.TOPICS)),
+    Subject("quantum", "Quantum", "⚛", "Explore qubits, superposition, entanglement and quantum gates.", tuple(t.topic_id for t in quantum.TOPICS)),
 )
 
 

@@ -21,11 +21,13 @@ export const api = {
   topics() {
     return request("/api/topics");
   },
-  subjects() {
-    return request("/api/subjects");
+  subjects(learnerId) {
+    const q = learnerId ? `?learner_id=${encodeURIComponent(learnerId)}` : "";
+    return request(`/api/subjects${q}`);
   },
-  subject(id) {
-    return request(`/api/subjects/${encodeURIComponent(id)}`);
+  subject(id, learnerId) {
+    const q = learnerId ? `?learner_id=${encodeURIComponent(learnerId)}` : "";
+    return request(`/api/subjects/${encodeURIComponent(id)}${q}`);
   },
   createSession(payload) {
     return request("/api/sessions", { method: "POST", headers, body: JSON.stringify(payload) });
@@ -51,6 +53,17 @@ export const api = {
   },
   progress(id) {
     return request(`/api/sessions/${encodeURIComponent(id)}/progress`);
+  },
+  progressQuery(learnerId) {
+    const q = learnerId ? `?learner_id=${encodeURIComponent(learnerId)}` : "";
+    return request(`/api/progress${q}`);
+  },
+  journeyQuery(learnerId, subjectId) {
+    const params = new URLSearchParams();
+    if (learnerId) params.set("learner_id", learnerId);
+    if (subjectId) params.set("subject_id", subjectId);
+    const q = params.toString() ? `?${params}` : "";
+    return request(`/api/journey${q}`);
   },
   insights(id) {
     return request(`/api/sessions/${encodeURIComponent(id)}/insights`);

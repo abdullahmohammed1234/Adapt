@@ -36,7 +36,7 @@ def _json_bytes(payload: Any, *, status: int = 200) -> tuple[int, bytes, str]:
 
 
 class AdaptHandler(BaseHTTPRequestHandler):
-    server_version = "ADAPT/7"
+    server_version = "ADAPT/8"
 
     def log_message(self, format: str, *args: Any) -> None:
         _ = (format, args)
@@ -122,10 +122,19 @@ class AdaptHandler(BaseHTTPRequestHandler):
         if method == "GET" and path == "/api/topics":
             return _json_bytes({"topics": service.list_topics()})[:2]
         if method == "GET" and path == "/api/subjects":
-            return _json_bytes({"subjects": service.list_subjects()})[:2]
+            learner_id = (query.get("learner_id") or [None])[0]
+            return _json_bytes({"subjects": service.list_subjects(learner_id=learner_id)})[:2]
         if method == "GET" and path.startswith("/api/subjects/"):
             subject_id = path.rstrip("/").split("/")[-1]
-            return _json_bytes(service.get_subject(subject_id))[:2]
+            learner_id = (query.get("learner_id") or [None])[0]
+            return _json_bytes(service.get_subject(subject_id, learner_id=learner_id))[:2]
+        if method == "GET" and path == "/api/progress":
+            learner_id = (query.get("learner_id") or [None])[0]
+            return _json_bytes(service.get_progress(learner_id=learner_id))[:2]
+        if method == "GET" and path == "/api/journey":
+            learner_id = (query.get("learner_id") or [None])[0]
+            subject_id = (query.get("subject_id") or [None])[0]
+            return _json_bytes(service.get_journey(learner_id=learner_id, subject_id=subject_id))[:2]
         if method == "POST" and path == "/api/sessions":
             view = service.create_session(
                 topic_id=str(payload.get("topic_id") or ""),
@@ -135,6 +144,7 @@ class AdaptHandler(BaseHTTPRequestHandler):
                 session_id=payload.get("session_id"),
                 initial_challenge=payload.get("initial_challenge"),
                 subject_id=payload.get("subject_id"),
+                concept_id=payload.get("concept_id"),
             )
             return _json_bytes(view, status=201)[:2]
         if method == "POST" and path == "/api/sessions/restore":
