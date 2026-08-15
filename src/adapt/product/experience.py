@@ -15,19 +15,19 @@ from adapt.product.trace_explain import human_trace_explanation
 from adapt.tutor.session import StepTrace, TutorSession
 
 APPROACH_OPTIONS = (
-    {"id": "knew", "label": "I knew it"},
+    {"id": "knew", "label": "I knew the method"},
     {"id": "worked", "label": "I worked it out"},
     {"id": "pattern", "label": "I recognized the pattern"},
     {"id": "guessed", "label": "I guessed"},
-    {"id": "unsure", "label": "I'm not sure"},
+    {"id": "unsure", "label": "I wasn't sure"},
 )
 
 APPROACH_TEXT = {
-    "knew": "I knew it.",
+    "knew": "I knew the method.",
     "worked": "I worked it out.",
     "pattern": "I recognized the pattern.",
     "guessed": "I guessed.",
-    "unsure": "I'm not sure.",
+    "unsure": "I wasn't sure.",
 }
 
 CONFIDENCE_EMOJI = (
@@ -36,6 +36,12 @@ CONFIDENCE_EMOJI = (
     {"value": 3, "label": "Somewhat", "emoji": "😐"},
     {"value": 4, "label": "Confident", "emoji": "🙂"},
     {"value": 5, "label": "Very confident", "emoji": "😎"},
+)
+
+CONFIDENCE_QUICK = (
+    {"value": 1, "label": "Not sure", "emoji": "😕", "sr": "Not sure"},
+    {"value": 3, "label": "Somewhat", "emoji": "🙂", "sr": "Somewhat sure"},
+    {"value": 5, "label": "Very confident", "emoji": "😎", "sr": "Very confident"},
 )
 
 CONFIDENCE_VISUAL = (
@@ -85,6 +91,7 @@ def evidence_plan(session: TutorSession, challenge) -> dict[str, Any]:
         "approach_options": [dict(item) for item in APPROACH_OPTIONS],
         "confidence_emoji": [dict(item) for item in CONFIDENCE_EMOJI],
         "confidence_visual": [dict(item) for item in CONFIDENCE_VISUAL],
+        "confidence_quick": [dict(item) for item in CONFIDENCE_QUICK],
         "legacy_help": prompt,
     }
 
@@ -130,8 +137,12 @@ def what_adapt_noticed(step: StepTrace) -> dict[str, Any]:
         bullets.append({"ok": False, "text": "A specific mix-up showed up"})
     mastery = max(0.0, min(1.0, float(step.state_after.mastery_estimate)))
     arrow = delta_arrow(step.state_before.mastery_estimate, step.state_after.mastery_estimate)
+    kind, headline, body = noticed_kind_copy(step)
     return {
         "title": "What ADAPT noticed",
+        "kind": kind,
+        "headline": headline,
+        "body": body,
         "bullets": bullets,
         "summary": learner["noticed"],
         "mastery_percent": int(round(mastery * 100)),
@@ -148,7 +159,70 @@ def what_adapt_noticed(step: StepTrace) -> dict[str, Any]:
             StrategyName.RECOVER: "Let's move forward",
         }.get(step.decision, step.decision.value),
         "explanation": human_trace_explanation(step),
+        "from_trace": True,
     }
+
+
+def noticed_kind_copy(step: StepTrace) -> tuple[str, str, str]:
+    evidence = step.evidence
+    decision = step.decision
+    trajectory = step.state_after.learning_trajectory.value
+    correct = evidence.answer_status == AnswerStatus.CORRECT
+    if evidence.misconception_signal and decision == StrategyName.REMEDIATE:
+        return (
+            "misconception",
+            "Misconception",
+            "You're making the same mistake in a different form.",
+        )
+    if decision == StrategyName.REMEDIATE:
+        return (
+            "remediation",
+            "Remediation",
+            "Let's slow down and work on this idea from another angle.",
+        )
+    if decision in {StrategyName.GATHER_EVIDENCE, StrategyName.ASSESS} or (
+        step.state_after.uncertainty.value in {"HIGH_UNCERTAINTY", "INSUFFICIENT_EVIDENCE"}
+    ):
+        return (
+            "uncertainty",
+            "Uncertainty",
+            "ADAPT isn't sure yet, so let's gather more evidence.",
+        )
+    if trajectory == "IMPROVING" and step.step_number > 1:
+        return (
+            "improvement",
+            "Improvement",
+            "Your recent answers show improvement.",
+        )
+    if correct and evidence.confidence_signal.value == "LOW":
+        return (
+            "low_confidence",
+            "Low confidence",
+            "You got it right, but you're still unsure.",
+        )
+    if (
+        correct
+        and evidence.confidence_signal.value == "HIGH"
+        and evidence.reasoning_quality == ReasoningQuality.STRONG
+    ):
+        return (
+            "strong_evidence",
+            "Strong evidence",
+            "You seem comfortable with this idea.",
+        )
+    if evidence.misconception_signal:
+        return (
+            "misconception",
+            "Misconception",
+            "You're making the same mistake in a different form.",
+        )
+    return ("observed", "What ADAPT noticed", noticed_from_evidence_safe(step))
+
+
+def noticed_from_evidence_safe(step: StepTrace) -> str:
+    from adapt.product.explanations import noticed_from_evidence
+
+    return noticed_from_evidence(step)
 
 
 def why_this_question(
@@ -216,6 +290,8 @@ def session_insights(session: TutorSession) -> dict[str, Any]:
         "practice": None,
         "how_you_learn": None,
         "recent_change": None,
+        "explore": None,
+        "lines": [],
         "from_evidence": True,
     }
     if not traces:
@@ -245,20 +321,38 @@ def session_insights(session: TutorSession) -> dict[str, Any]:
         practice = f"{concept_label(worst_id)} is still less consistent."
     how = None
     if strong_reason >= 2:
-        how = "You perform more clearly when you explain your reasoning."
+        how = "You tend to perform better when you explain your approach."
     elif correct and strong_reason == 0:
         how = "Correct answers arrived, but there was little reasoning to interpret."
     recent = None
     if conf_after - conf_before > 0.05:
-        recent = "Your confidence improved during this session."
+        recent = f"You are becoming more confident with {concept_label(best_id).lower()}."
     elif conf_before - conf_after > 0.05:
         recent = "Your confidence dipped during this session."
+    recovered = any(
+        step.decision == StrategyName.RECOVER
+        or (
+            step.evidence.misconception_signal is False
+            and step.step_number > 1
+            and any(prev.evidence.misconception_signal for prev in traces[: step.step_number - 1])
+            and step.evidence.answer_status == AnswerStatus.CORRECT
+        )
+        for step in traces
+    )
+    if recovered and not recent:
+        recent = f"You've recovered from a misconception in {concept_label(worst_id).lower()}."
+    explore = None
+    if worst_id and (worst_id != best_id or best_steps[-1].state_after.mastery_estimate < 0.55):
+        explore = f"{concept_label(worst_id)} is still worth exploring."
+    lines = [item for item in (good, how, recent, explore, practice) if item]
     return {
         "title": "Learning insights",
         "good_at": good,
         "practice": practice,
         "how_you_learn": how,
         "recent_change": recent,
+        "explore": explore,
+        "lines": lines,
         "from_evidence": True,
     }
 

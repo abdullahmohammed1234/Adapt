@@ -276,6 +276,13 @@ def ch(
             "TRANSFER": 0.66,
             "APPLICATION": 0.64,
             "SCENARIO": 0.62,
+            "NUMERIC": 0.58,
+            "SHORT_ANSWER": 0.7,
+            "DEBUG": 0.88,
+            "MATCH": 0.74,
+            "DIAGRAM": 0.68,
+            "ESTIMATION": 0.64,
+            "EXPLAIN_CHOICE": 0.84,
         }.get(challenge_type, 0.55)
     return CatalogChallenge(
         id=challenge_id,

@@ -3,7 +3,7 @@
 Judge-facing product features. Adaptive decisions come from `AdaptiveTutor`.
 
 - Offline local demo (`python -m app`) with no API key
-- Learner session: challenge, answer, 1–5 confidence, optional reasoning
+- Learner session: challenge, answer, quick confidence, optional approach, optional explanation
 - Feedback generated from actual evidence
 - Adaptation moment generated from the actual decision trace
 - Research trace: Evidence → State → Strategy → Next Challenge
@@ -15,5 +15,5 @@ Judge-facing product features. Adaptive decisions come from `AdaptiveTutor`.
 - Known limitations page, including Phase 5 n = 0
 - Reset to a clean session
 - Session restore after refresh while the server is running
-- Algebra and Fractions topics
-- CLI demos: `python demo/run_demo.py`, `python demo/run_competition_demo.py`
+- Seven learning domains with expanded concept catalogs (Mathematics through Quantum)
+- CLI demos: `python demo/run_demo.py`, `python demo/run_competition_demo.py`, `python demo/run_phase9_demo.py`

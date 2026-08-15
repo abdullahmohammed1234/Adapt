@@ -36,7 +36,7 @@ def _json_bytes(payload: Any, *, status: int = 200) -> tuple[int, bytes, str]:
 
 
 class AdaptHandler(BaseHTTPRequestHandler):
-    server_version = "ADAPT/8"
+    server_version = "ADAPT/9"
 
     def log_message(self, format: str, *args: Any) -> None:
         _ = (format, args)

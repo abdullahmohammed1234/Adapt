@@ -20,13 +20,13 @@ _DOMAIN_MODULES = (
 )
 
 SUBJECTS: tuple[Subject, ...] = (
-    Subject("mathematics", "Mathematics", "📐", "Build fluency with numbers, algebra, geometry, and trigonometry.", tuple(t.topic_id for t in mathematics.TOPICS)),
-    Subject("calculus", "Calculus", "∫", "Make sense of limits, derivatives, integrals, and changing quantities.", tuple(t.topic_id for t in calculus.TOPICS)),
-    Subject("computer-science", "Computer Science", "💻", "Learn programs, data structures, algorithms, and how computers organize information.", tuple(t.topic_id for t in computer_science.TOPICS)),
-    Subject("physics", "Physics", "⚛", "Connect motion, forces, energy, and waves to how the physical world behaves.", tuple(t.topic_id for t in physics.TOPICS)),
-    Subject("chemistry", "Chemistry", "🧪", "Explore atoms, bonding, reactions, and how matter changes.", tuple(t.topic_id for t in chemistry.TOPICS)),
-    Subject("space", "Space", "🌌", "Compare planets, stars, galaxies, and the scale of the universe.", tuple(t.topic_id for t in space.TOPICS)),
-    Subject("quantum", "Quantum", "⚛", "Explore qubits, superposition, entanglement and quantum gates.", tuple(t.topic_id for t in quantum.TOPICS)),
+    Subject("mathematics", "Mathematics", "∑", "Numbers, logic, and structure.", tuple(t.topic_id for t in mathematics.TOPICS)),
+    Subject("calculus", "Calculus", "∫", "Change, rates, and accumulation.", tuple(t.topic_id for t in calculus.TOPICS)),
+    Subject("computer-science", "Computer Science", "💻", "Code, data, and algorithms.", tuple(t.topic_id for t in computer_science.TOPICS)),
+    Subject("physics", "Physics", "⚡", "Motion, forces, and energy.", tuple(t.topic_id for t in physics.TOPICS)),
+    Subject("chemistry", "Chemistry", "🧪", "Atoms, bonds, and reactions.", tuple(t.topic_id for t in chemistry.TOPICS)),
+    Subject("space", "Space", "🌌", "Planets, stars, and the cosmos.", tuple(t.topic_id for t in space.TOPICS)),
+    Subject("quantum", "Quantum", "⚛", "Reality gets interesting.", tuple(t.topic_id for t in quantum.TOPICS)),
 )
 
 

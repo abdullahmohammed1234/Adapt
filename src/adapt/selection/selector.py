@@ -18,7 +18,9 @@ from adapt.selection.diversity import diversity_bonus
 from adapt.selection.reasons import SelectionResult
 from adapt.selection.repetition import (
     FAMILY_WINDOW,
+    HARD_WINDOW,
     RECENT_WINDOW,
+    is_consecutive_type,
     is_family_repeat,
     is_recent_repeat,
     repetition_allowed,
@@ -32,6 +34,8 @@ PREFERRED_TYPES = {
         "SCENARIO",
         "DIRECT",
         "SEQUENCE",
+        "NUMERIC",
+        "ESTIMATION",
     ),
     StrategyName.PROBE: (
         "DIAGNOSTIC",
@@ -41,9 +45,13 @@ PREFERRED_TYPES = {
         "EXPLANATION",
         "TRUE_FALSE",
         "CONCEPT_CHECK",
+        "DEBUG",
+        "MATCH",
+        "EXPLAIN_CHOICE",
+        "DIAGRAM",
     ),
-    StrategyName.REMEDIATE: ("REMEDIATION", "ERROR_ANALYSIS", "COMPARE", "TRUE_FALSE"),
-    StrategyName.DECREASE: ("DIRECT", "CONCEPT_CHECK", "MULTIPLE_CHOICE", "REMEDIATION"),
+    StrategyName.REMEDIATE: ("REMEDIATION", "ERROR_ANALYSIS", "COMPARE", "TRUE_FALSE", "DEBUG"),
+    StrategyName.DECREASE: ("DIRECT", "CONCEPT_CHECK", "MULTIPLE_CHOICE", "REMEDIATION", "NUMERIC"),
     StrategyName.MAINTAIN: (
         "DIRECT",
         "MULTIPLE_CHOICE",
@@ -51,8 +59,12 @@ PREFERRED_TYPES = {
         "PREDICTION",
         "SEQUENCE",
         "CONCEPT_CHECK",
+        "NUMERIC",
+        "SHORT_ANSWER",
+        "MATCH",
+        "DIAGRAM",
     ),
-    StrategyName.RECOVER: ("DIRECT", "CONCEPT_CHECK", "MULTIPLE_CHOICE", "APPLICATION"),
+    StrategyName.RECOVER: ("DIRECT", "CONCEPT_CHECK", "MULTIPLE_CHOICE", "APPLICATION", "NUMERIC"),
     StrategyName.GATHER_EVIDENCE: (
         "DIAGNOSTIC",
         "PREDICTION",
@@ -60,6 +72,9 @@ PREFERRED_TYPES = {
         "COMPARE",
         "EXPLANATION",
         "CONCEPT_CHECK",
+        "DEBUG",
+        "EXPLAIN_CHOICE",
+        "SHORT_ANSWER",
     ),
     StrategyName.ASSESS: (
         "DIAGNOSTIC",
@@ -67,6 +82,8 @@ PREFERRED_TYPES = {
         "MULTIPLE_CHOICE",
         "TRUE_FALSE",
         "PREDICTION",
+        "MATCH",
+        "SHORT_ANSWER",
     ),
 }
 
@@ -203,6 +220,13 @@ class Phase7ChallengeSelector(AdaptiveChallengeSelector):
                 repetition_pts = 0 if not allow_repeat else 4
             if is_family_repeat(item.family, history, window=FAMILY_WINDOW) and not allow_repeat:
                 repetition_pts = min(repetition_pts, 2)
+            if is_consecutive_type(item.challenge_type, history) and not allow_repeat:
+                repetition_pts = min(repetition_pts, 1)
+            if history.attempts:
+                last_id = history.attempts[-1].challenge_id
+                last_meta = self.catalog.challenge(last_id)
+                if last_meta is not None and item.representation and item.representation != last_meta.representation:
+                    diversity_pts += 4
             progress_pts = 3
             if strategy == StrategyName.REMEDIATE and item.target_misconception in target_misc:
                 progress_pts += 8
@@ -227,7 +251,7 @@ class Phase7ChallengeSelector(AdaptiveChallengeSelector):
 
         filtered = ranked
         if not allow_repeat:
-            not_recent = [item for item in ranked if not is_recent_repeat(item.id, history, window=RECENT_WINDOW)]
+            not_recent = [item for item in ranked if not is_recent_repeat(item.id, history, window=HARD_WINDOW)]
             if not_recent:
                 filtered = not_recent
             not_family = [
@@ -235,6 +259,15 @@ class Phase7ChallengeSelector(AdaptiveChallengeSelector):
             ]
             if not_family:
                 filtered = not_family
+            not_same_type = [item for item in filtered if not is_consecutive_type(item.challenge_type, history)]
+            if not_same_type:
+                filtered = not_same_type
+            if history.attempts:
+                last_meta = self.catalog.challenge(history.attempts[-1].challenge_id)
+                if last_meta is not None and last_meta.representation:
+                    other_repr = [item for item in filtered if item.representation != last_meta.representation]
+                    if other_repr:
+                        filtered = other_repr
 
         chosen = filtered[0]
         reasons = [
