@@ -19,6 +19,7 @@ from adapt.errors import (
     SessionNotFoundError,
 )
 from adapt.product.confidence import scale_options, to_engine_confidence
+from adapt.product.content import product_content
 from adapt.product.counterfactual import default_counterfactual
 from adapt.product.demo import load_demo_scenario
 from adapt.product.errors import (
@@ -27,6 +28,12 @@ from adapt.product.errors import (
     SessionCompleteError,
     SessionUnavailableError,
     SubmissionError,
+)
+from adapt.product.labels import (
+    DEMO_SCENARIO_LABEL,
+    PROMISE_SHORT,
+    opening_state,
+    strategy_label,
 )
 from adapt.product.present import (
     adaptation_from_step,
@@ -39,10 +46,12 @@ from adapt.product.present import (
 from adapt.product.story import adaptation_story
 from adapt.product.summary import session_summary
 from adapt.product.topics import list_topics, require_topic, topic_for_concept
+from adapt.product.trace_explain import human_trace_explanation
 from adapt.tutor.responses import build_scripted_response
 from adapt.tutor.tutor import DEFAULT_SEED, AdaptiveTutor
 
 DEFAULT_MAX_STEPS = 10
+MAX_TEXT_LENGTH = 20000
 
 
 def _now() -> str:
@@ -77,6 +86,9 @@ class ProductService:
 
     def confidence_scale(self) -> list[dict[str, int | str]]:
         return scale_options()
+
+    def content(self) -> dict[str, Any]:
+        return product_content()
 
     def create_session(
         self,
@@ -133,6 +145,10 @@ class ProductService:
                 raise SessionCompleteError("This session is complete.")
             if answer is None or not str(answer).strip():
                 raise InvalidResponseError("answer is required")
+            if len(str(answer)) > MAX_TEXT_LENGTH:
+                raise InvalidResponseError("answer is too long")
+            if reasoning is not None and len(str(reasoning)) > MAX_TEXT_LENGTH:
+                raise InvalidResponseError("reasoning is too long")
             engine_confidence = to_engine_confidence(confidence)
             current = session.current_challenge
             if current.challenge_id == "UNAVAILABLE":
@@ -253,6 +269,8 @@ class ProductService:
             "beats": spec.get("beats") or [],
             "total_steps": len(kinds),
             "next_index": 0,
+            "label": DEMO_SCENARIO_LABEL,
+            "seed": self.seed,
         }
         return view
 
@@ -281,6 +299,7 @@ class ProductService:
             "next_index": meta.demo_index,
             "total_steps": len(meta.demo_kinds),
             "complete": meta.demo_index >= len(meta.demo_kinds),
+            "label": DEMO_SCENARIO_LABEL,
         }
         return result
 
@@ -326,6 +345,8 @@ class ProductService:
             )
             >= 0.02
         )
+        a_explain = a_final.get("human_explanation") or {}
+        b_explain = b_final.get("human_explanation") or {}
         return {
             "id": config.get("id") or "counterfactual",
             "title": config.get("title") or "Same challenge, different evidence",
@@ -337,8 +358,12 @@ class ProductService:
                 "session": run_a["session"],
                 "trace": run_a["trace"],
                 "final_decision": (a_final.get("strategy") or {}).get("decision"),
+                "final_decision_label": strategy_label(
+                    (a_final.get("strategy") or {}).get("decision") or "ASSESS"
+                ),
                 "final_challenge": (a_final.get("next_challenge") or {}).get("challenge_id"),
                 "final_mastery": (a_final.get("state") or {}).get("mastery"),
+                "explanation": a_explain,
             },
             "learner_b": {
                 "label": learner_b.get("label") or "Learner B",
@@ -347,11 +372,36 @@ class ProductService:
                 "session": run_b["session"],
                 "trace": run_b["trace"],
                 "final_decision": (b_final.get("strategy") or {}).get("decision"),
+                "final_decision_label": strategy_label(
+                    (b_final.get("strategy") or {}).get("decision") or "ASSESS"
+                ),
                 "final_challenge": (b_final.get("next_challenge") or {}).get("challenge_id"),
                 "final_mastery": (b_final.get("state") or {}).get("mastery"),
+                "explanation": b_explain,
             },
             "differentiated": differentiated,
+            "headline": "Same starting point. Different evidence. Different decision.",
+            "label": DEMO_SCENARIO_LABEL,
+            "promise": PROMISE_SHORT,
         }
+
+    def reset_session(self, session_id: str | None = None) -> dict[str, Any]:
+        """Start a clean session. The previous session is not reused."""
+        topic_id = "algebra"
+        mode = "learner"
+        if session_id:
+            meta = self._meta.get(session_id)
+            if meta is None:
+                try:
+                    self.tutor.get_session(session_id)
+                except SessionNotFoundError as exc:
+                    raise SessionUnavailableError(str(exc)) from exc
+                raise SessionUnavailableError(f"unknown session: {session_id}")
+            topic_id = meta.topic_id
+            if meta.mode == "demo":
+                return self.start_demo()
+            mode = "learner" if meta.mode == "research" else meta.mode
+        return self.create_session(topic_id=topic_id, mode=mode)
 
     def engine_decision(self, session_id: str) -> str | None:
         """Expose the latest engine decision for preservation tests. Not used by UI logic."""
@@ -416,12 +466,25 @@ class ProductService:
         status = "complete" if complete else "awaiting_answer"
         if unavailable and not complete:
             status = "challenge_unavailable"
-        return {
+        opening = opening_state(
+            session.learner_state,
+            session.strategy_state,
+            concept=topic.name if topic.topic_id != "algebra" else "Basic Algebra",
+        )
+        if not session.traces:
+            opening["mastery"] = "uncertain"
+            opening["confidence"] = "low"
+            opening["strategy"] = "ASSESS"
+            opening["strategy_code"] = "ASSESS"
+        payload = {
             "session_id": session.session_id,
             "learner_id": session.learner_id,
             "status": status,
             "mode": meta.mode,
             "topic": topic.to_dict(),
+            "opening": opening,
+            "current_strategy": session.strategy_state.current_strategy.value,
+            "current_strategy_label": strategy_label(session.strategy_state.current_strategy),
             "progress": {
                 "current": min(session.step_number + (0 if complete else 1), meta.max_steps),
                 "completed": session.step_number,
@@ -441,6 +504,9 @@ class ProductService:
                 "not just whether you got the answer right."
             ),
         }
+        if meta.mode == "demo":
+            payload["demo_label"] = DEMO_SCENARIO_LABEL
+        return payload
 
     def _public_step(self, step) -> dict[str, Any]:
         return {
@@ -450,6 +516,7 @@ class ProductService:
             "next_challenge": challenge_view(step.next_challenge, include_answer=False),
             "understanding": understanding_view(step.state_after),
             "learned_something": step.step_number == 1,
+            "human_explanation": human_trace_explanation(step),
         }
 
     def _step_result_view(self, session, meta: ProductSession, *, include_research: bool) -> dict[str, Any]:
@@ -471,6 +538,7 @@ class ProductService:
             "complete_links": sum(1 for item in chain if item["complete"]),
             "total_links": len(chain),
             "current_strategy": session.strategy_state.current_strategy.value,
+            "current_strategy_label": strategy_label(session.strategy_state.current_strategy),
             "understanding": understanding_view(session.learner_state),
             "research_state": {
                 "mastery": round(session.learner_state.mastery_estimate, 4),

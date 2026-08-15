@@ -3,6 +3,7 @@ import { errorMessage, setState, state, subscribe } from "./state/store.js";
 
 const root = document.getElementById("app");
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const STORAGE_KEY = "adapt-session";
 
 function el(html) {
   const template = document.createElement("template");
@@ -18,25 +19,65 @@ function escapeHtml(value) {
     .replaceAll('"', "&quot;");
 }
 
+function persistSession() {
+  try {
+    if (!state.session?.session_id) {
+      sessionStorage.removeItem(STORAGE_KEY);
+      return;
+    }
+    sessionStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        session_id: state.session.session_id,
+        screen: state.screen,
+        researchOpen: state.researchOpen,
+      })
+    );
+  } catch {
+    /* private mode */
+  }
+}
+
+function readPersisted() {
+  try {
+    return JSON.parse(sessionStorage.getItem(STORAGE_KEY) || "null");
+  } catch {
+    return null;
+  }
+}
+
 function topbar(session) {
   const progress = session?.progress;
   const label = progress
     ? `${progress.completed + (session.complete ? 0 : 1)} / ${progress.total}`
     : "";
   const width = progress ? Math.round((progress.completed / progress.total) * 100) : 0;
+  const demo = session?.demo_label || state.demo?.label;
   return `
     <header class="topbar">
       <a class="brand" href="#landing">ADAPT</a>
+      <nav class="nav" aria-label="Product">
+        <a href="#landing">Home</a>
+        <a href="#architecture">Architecture</a>
+        <a href="#evidence">Evidence</a>
+        <a href="#limitations">Limitations</a>
+      </nav>
       <div class="top-actions">
+        ${demo ? `<span class="demo-tag">${escapeHtml(demo)}</span>` : ""}
         ${
           progress
             ? `<div class="progress-track" aria-hidden="true"><div class="progress-fill" style="width:${width}%"></div></div>
                <p class="progress-label">Challenge ${escapeHtml(label)}</p>`
             : ""
         }
-        <button class="btn-ghost" type="button" data-action="toggle-research">${
-          state.researchOpen ? "Hide trace" : "Research view"
-        }</button>
+        ${
+          session
+            ? `<button class="btn-ghost" type="button" data-action="toggle-research">${
+                state.researchOpen ? "Hide trace" : "Research view"
+              }</button>
+               <button class="btn-ghost" type="button" data-action="reset">Reset</button>`
+            : ""
+        }
       </div>
     </header>
   `;
@@ -47,23 +88,43 @@ function errorBanner() {
   return `<div class="banner error" role="alert">${escapeHtml(state.error)}</div>`;
 }
 
+function chainGraphic(raw) {
+  const items = raw && raw.length ? raw : ["Answer", "Evidence", "Learner State", "Strategy", "Next Challenge"];
+  const nodes = items
+    .map(
+      (item, index) =>
+        `<li><span>${escapeHtml(item)}</span>${index < items.length - 1 ? `<span class="arrow" aria-hidden="true">↓</span>` : ""}</li>`
+    )
+    .join("");
+  return `<ol class="adapt-chain">${nodes}</ol>`;
+}
+
 function landing() {
+  const content = state.content;
+  const chain = content?.chain || ["Answer", "Evidence", "Learner State", "Strategy", "Next Challenge"];
   return `
     ${topbar(null)}
     <main id="main">
       ${errorBanner()}
       <section class="hero center">
-        <p class="kicker">Learner experience</p>
-        <h1>A tutor that adapts to how you learn.</h1>
+        <p class="kicker">ADAPT</p>
+        <h1>A tutor that adapts to how you learn, not just whether you are right.</h1>
         <p class="lede">
-          Answer a few challenges. ADAPT learns from your reasoning, confidence,
-          and mistakes to decide what you should practice next.
+          Most AI tutors adapt to the answer. ADAPT asks what the answer tells us
+          about the learner, then changes the next challenge for a reason.
         </p>
+        <p class="tagline">Evidence-driven adaptive tutoring.</p>
         <div class="cta-row">
-          <button class="btn" type="button" data-action="start">Start Learning</button>
-          <button class="btn btn-secondary" type="button" data-action="demo">Watch a 2-minute demo</button>
-          <button class="btn btn-secondary" type="button" data-action="counterfactual">See a counterfactual</button>
+          <button class="btn" type="button" data-action="start">Try ADAPT</button>
+          <button class="btn btn-secondary" type="button" data-action="demo">Watch the demo</button>
+          <button class="btn btn-secondary" type="button" data-action="counterfactual">Counterfactual</button>
         </div>
+        <p class="sr-only">Start Learning</p>
+      </section>
+      <section class="center how-it-adapts">
+        <h2>How it adapts</h2>
+        ${chainGraphic(chain)}
+        <p class="muted">The answer is not the whole story.</p>
       </section>
     </main>
   `;
@@ -107,6 +168,20 @@ function confidenceScale(scale) {
     .join("");
 }
 
+function openingCard(session) {
+  const opening = session?.opening;
+  if (!opening) return "";
+  return `
+    <aside class="state-card" aria-label="Learner state">
+      <p class="kicker">Initial assessment</p>
+      <p><strong>Concept:</strong> ${escapeHtml(opening.concept)}</p>
+      <p><strong>Mastery:</strong> ${escapeHtml(opening.mastery)}</p>
+      <p><strong>Confidence:</strong> ${escapeHtml(opening.confidence)}</p>
+      <p><strong>Strategy:</strong> ${escapeHtml(opening.strategy)}</p>
+    </aside>
+  `;
+}
+
 function challengeScreen(session) {
   const challenge = session.challenge;
   if (!challenge) {
@@ -116,12 +191,14 @@ function challengeScreen(session) {
     return `<div class="banner error" role="alert">A challenge isn’t available right now.</div>`;
   }
   const disabled = state.submitting ? "disabled" : "";
+  const showOpening = !session.last_result && (session.progress?.completed || 0) === 0;
   return `
+    ${showOpening ? openingCard(session) : ""}
     <form class="card" id="challenge-form">
       <p class="kicker">Solve this challenge</p>
       <p class="challenge-prompt">${escapeHtml(challenge.prompt)}</p>
       <label for="answer">Your answer</label>
-      <input id="answer" name="answer" type="text" required ${disabled} autocomplete="off" />
+      <input id="answer" name="answer" type="text" required ${disabled} autocomplete="off" maxlength="20000" />
       <label id="confidence-label">How confident are you?</label>
       <div class="confidence" role="radiogroup" aria-labelledby="confidence-label">
         ${confidenceScale(session.confidence_scale)}
@@ -129,7 +206,7 @@ function challengeScreen(session) {
       <label for="reasoning">${escapeHtml(session.reasoning_prompt || "How did you get your answer?")}
         <span class="hint">${escapeHtml(session.reasoning_help || "")}</span>
       </label>
-      <textarea id="reasoning" name="reasoning" ${disabled} placeholder="Explain your thinking..."></textarea>
+      <textarea id="reasoning" name="reasoning" ${disabled} maxlength="20000" placeholder="Explain your thinking..."></textarea>
       <div class="form-actions">
         <button class="btn" type="submit" ${disabled}>${state.submitting ? "ADAPT is thinking…" : "Submit Answer"}</button>
         <p class="understand" aria-label="Understanding">
@@ -154,14 +231,15 @@ function feedbackScreen(session) {
       <h2>${escapeHtml(feedback.headline)}</h2>
       <p>${escapeHtml(feedback.detail)}</p>
     </section>
-    <section class="adapt-card">
-      <h3>${escapeHtml(adaptation.headline)}</h3>
-      <p>${escapeHtml(adaptation.message)}</p>
-      ${
-        adaptation.supporting && adaptation.supporting !== adaptation.message
-          ? `<p>${escapeHtml(adaptation.supporting)}</p>`
-          : ""
-      }
+    <section class="adapt-card" data-adaptation="${escapeHtml(adaptation.decision)}">
+      <p class="kicker">${escapeHtml(adaptation.headline)}</p>
+      <h3>${escapeHtml(adaptation.message)}</h3>
+      <p>${escapeHtml(adaptation.evidence_line || adaptation.supporting || "")}</p>
+      <dl class="adapt-facts">
+        <dt>Learner state</dt><dd>${escapeHtml(adaptation.state_line || "")}</dd>
+        <dt>Strategy</dt><dd>${escapeHtml(adaptation.decision_label || adaptation.decision)}</dd>
+        <dt>Next</dt><dd>${escapeHtml(adaptation.next_line || "")}</dd>
+      </dl>
     </section>
     <div class="form-actions">
       <button class="btn" type="button" data-action="${session.complete ? "summary" : "continue"}">
@@ -194,19 +272,19 @@ function researchPanel() {
     .map((item) => `<span class="pill">Step ${item.step} ${escapeHtml(item.strategy)}</span>`)
     .join("");
   if (!last) {
-    return `<section class="research-panel" style="margin-top:24px"><h2>ADAPT TRACE</h2><p>No steps yet. Submit an answer to see evidence → state → strategy → challenge.</p></section>`;
+    return `<section class="research-panel" style="margin-top:24px"><h2>Research trace</h2><p>No steps yet. Submit an answer to see evidence → state → strategy → challenge.</p></section>`;
   }
+  const explain = last.human_explanation || last.adaptation?.explanation || {};
   const rs = last.state;
   return `
     <section class="research-panel" style="margin-top:24px" aria-label="ADAPT research trace">
-      <h2>ADAPT TRACE</h2>
+      <h2>Research trace</h2>
+      <p class="muted-light">What did this response tell us — and why did the next challenge change?</p>
       <div class="chain">
-        <div class="chain-step"><span class="mark">↓</span><div><strong>Response</strong><br>${escapeHtml(last.evidence.answer_status)}</div></div>
-        <div class="chain-step"><span class="mark">↓</span><div><strong>Evidence</strong><br>${escapeHtml(last.evidence.reasoning_quality)} reasoning · ${escapeHtml(last.evidence.confidence_signal)} confidence · ${escapeHtml(last.evidence.evidence_strength)} strength</div></div>
-        <div class="chain-step"><span class="mark">↓</span><div><strong>Learner State</strong><br>Mastery: ${rs.mastery} ${rs.mastery_arrow} · Confidence: ${rs.confidence} ${rs.confidence_arrow}</div></div>
-        <div class="chain-step"><span class="mark">↓</span><div><strong>Strategy</strong><br>${escapeHtml(last.strategy.decision)}</div></div>
-        <div class="chain-step"><span class="mark">↓</span><div><strong>Why?</strong><br>${escapeHtml(last.strategy.reason)}</div></div>
-        <div class="chain-step"><span class="mark">↓</span><div><strong>Next Challenge</strong><br>${escapeHtml(last.next_challenge.challenge_id)}</div></div>
+        <div class="chain-step"><span class="mark">↓</span><div><strong>Evidence</strong><br>What did the learner response tell us?<br>${escapeHtml(explain.evidence || last.evidence.answer_status)}<br><span class="dim">${escapeHtml(explain.evidence_detail || "")}</span></div></div>
+        <div class="chain-step"><span class="mark">↓</span><div><strong>Learner State</strong><br>What changed?<br>Mastery: ${rs.mastery} ${rs.mastery_arrow} · Confidence: ${rs.confidence} ${rs.confidence_arrow}<br><span class="dim">${escapeHtml(explain.state || "")}</span></div></div>
+        <div class="chain-step"><span class="mark">↓</span><div><strong>Strategy</strong><br>What instructional decision was made?<br>${escapeHtml(explain.strategy_label || last.strategy.decision)}<br><span class="dim">${escapeHtml(explain.strategy || last.strategy.reason)}</span></div></div>
+        <div class="chain-step"><span class="mark">↓</span><div><strong>Next Challenge</strong><br>Why was this challenge selected?<br>${escapeHtml(last.next_challenge.challenge_id)}<br><span class="dim">${escapeHtml(explain.next_challenge || "")}</span></div></div>
       </div>
       <h3>Timeline</h3>
       <div class="timeline">${timeline}</div>
@@ -233,8 +311,9 @@ function summaryScreen() {
           <dt>ADAPT adjusted your path</dt><dd>${summary.adapt_adjusted_path} times</dd>
         </dl>
         <div class="cta-row" style="justify-content:flex-start">
-          <button class="btn" type="button" data-action="start">Continue Learning</button>
+          <button class="btn" type="button" data-action="start">Start Learning</button>
           <button class="btn btn-secondary" type="button" data-action="story">View Adaptation</button>
+          <button class="btn btn-secondary" type="button" data-action="reset">Reset</button>
         </div>
       </section>
       ${state.researchOpen ? researchPanel() : ""}
@@ -274,28 +353,42 @@ function storyScreen() {
 
 function counterfactualScreen() {
   const cf = state.counterfactual;
-  if (!cf) return `<p class="loading">Running both learners through the engine…</p>`;
+  if (!cf) {
+    return `
+      ${topbar(null)}
+      <main id="main" class="center">
+        <p class="loading">Running both learners through AdaptiveTutor…</p>
+      </main>
+    `;
+  }
   const card = (learner) => `
     <article class="card">
       <h2>${escapeHtml(learner.label)}</h2>
       <p>${escapeHtml(learner.summary)}</p>
-      <p><strong>${escapeHtml(learner.final_decision || "—")}</strong></p>
+      <p class="decision">${escapeHtml(learner.final_decision_label || learner.final_decision || "—")}</p>
       <p>Next challenge: ${escapeHtml(learner.final_challenge || "—")}</p>
+      <p class="muted">${escapeHtml(learner.explanation?.strategy || "")}</p>
     </article>
   `;
   return `
     ${topbar(null)}
     <main id="main" class="center">
-      <p class="kicker">Counterfactual</p>
-      <h1>${escapeHtml(cf.title)}</h1>
-      <p class="lede">Same starting challenge. Different evidence. The product uses the actual engine — nothing is hardcoded.</p>
+      <p class="kicker">${escapeHtml(cf.label || "DEMO SCENARIO")}</p>
+      <h1>Same starting point</h1>
+      <p class="lede">${escapeHtml(cf.headline || "Different evidence. Different decision.")}</p>
       <p><strong>Challenge:</strong> ${escapeHtml(cf.challenge?.prompt || "")}</p>
       <div class="split">${card(cf.learner_a)}${card(cf.learner_b)}</div>
+      <ol class="adapt-chain compact">
+        <li><span>Different evidence</span><span class="arrow">↓</span></li>
+        <li><span>Different learner state</span><span class="arrow">↓</span></li>
+        <li><span>Different strategy</span></li>
+      </ol>
       <p class="banner info" style="margin-top:16px">
-        ${cf.differentiated ? "ADAPT produced different adaptive results." : "The two paths did not differentiate."}
+        ${cf.differentiated ? "Same starting point. Different evidence. Different decision." : "The two paths did not differentiate."}
       </p>
       <div class="form-actions">
-        <button class="btn" type="button" data-action="start">Start Learning</button>
+        <button class="btn" type="button" data-action="start">Try ADAPT</button>
+        <button class="btn btn-secondary" type="button" data-action="landing">Home</button>
       </div>
     </main>
   `;
@@ -307,10 +400,81 @@ function demoScreen() {
     ${topbar(session)}
     <main id="main" class="center">
       ${errorBanner()}
-      <p class="kicker">Guided demo</p>
+      <p class="kicker">${escapeHtml(state.demo?.label || session?.demo_label || "DEMO SCENARIO")}</p>
       <h1>Watch ADAPT change its mind for a reason.</h1>
       ${state.screen === "feedback" ? feedbackScreen(session || {}) : challengeScreen(session || { challenge: { prompt: "Loading…" }, confidence_scale: [] })}
       ${state.researchOpen ? researchPanel() : ""}
+    </main>
+  `;
+}
+
+function architectureScreen() {
+  const items = state.content?.architecture || [];
+  const list = items
+    .map(
+      (item, index) => `
+        <li>
+          <strong>${escapeHtml(item.name)}</strong>
+          <p>${escapeHtml(item.summary)}</p>
+          ${index < items.length - 1 ? `<span class="arrow">↓</span>` : ""}
+        </li>
+      `
+    )
+    .join("");
+  return `
+    ${topbar(null)}
+    <main id="main" class="center">
+      <p class="kicker">Architecture</p>
+      <h1>An explicit state transition, not a hidden prompt.</h1>
+      <ol class="arch-list">${list}</ol>
+      <div class="form-actions">
+        <button class="btn" type="button" data-action="start">Try ADAPT</button>
+      </div>
+    </main>
+  `;
+}
+
+function evidenceScreen() {
+  const evidence = state.content?.technical_evidence;
+  const phases = (evidence?.phases || [])
+    .map(
+      (phase) => `
+        <article class="card evidence-card">
+          <h2>${escapeHtml(phase.title)}</h2>
+          <ul>${(phase.items || []).map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
+        </article>
+      `
+    )
+    .join("");
+  return `
+    ${topbar(null)}
+    <main id="main" class="center">
+      <p class="kicker">Technical evidence</p>
+      <h1>Engineering validation, not a learning-gain claim.</h1>
+      <p class="lede">${escapeHtml(evidence?.disclaimer || "")}</p>
+      <div class="stack">${phases}</div>
+      <p class="banner info">${escapeHtml(state.content?.phase5?.statement || "Phase 5 human learning evaluation: INCONCLUSIVE (n=0)")}</p>
+    </main>
+  `;
+}
+
+function limitationsScreen() {
+  const items = (state.content?.limitations || [])
+    .map(
+      (item) => `
+        <article class="card">
+          <h2>${escapeHtml(item.title)}</h2>
+          <p>${escapeHtml(item.detail)}</p>
+        </article>
+      `
+    )
+    .join("");
+  return `
+    ${topbar(null)}
+    <main id="main" class="center">
+      <p class="kicker">Known limitations</p>
+      <h1>What this demo does not claim.</h1>
+      <div class="stack">${items}</div>
     </main>
   `;
 }
@@ -325,9 +489,24 @@ function render() {
     story: storyScreen,
     counterfactual: counterfactualScreen,
     demo: demoScreen,
+    architecture: architectureScreen,
+    evidence: evidenceScreen,
+    limitations: limitationsScreen,
   };
   const view = screens[state.screen] || landing;
   root.replaceChildren(el(view()));
+  persistSession();
+}
+
+async function ensureContent() {
+  if (state.content) return state.content;
+  try {
+    const content = await api.content();
+    setState({ content });
+    return content;
+  } catch {
+    return null;
+  }
 }
 
 async function loadTopics() {
@@ -415,6 +594,7 @@ async function showStory() {
 }
 
 async function runCounterfactual() {
+  location.hash = "counterfactual";
   setState({ screen: "counterfactual", loading: true, error: null, counterfactual: null });
   try {
     const counterfactual = await api.counterfactual();
@@ -481,9 +661,60 @@ async function toggleResearch() {
   setState({ researchOpen: next });
 }
 
+async function resetSession() {
+  const session = state.session;
+  try {
+    sessionStorage.removeItem(STORAGE_KEY);
+  } catch {
+    /* ignore */
+  }
+  if (!session) {
+    goLanding();
+    return;
+  }
+  try {
+    const next = await api.reset(session.session_id);
+    setState({
+      session: next,
+      result: null,
+      trace: null,
+      summary: null,
+      story: null,
+      demo: next.demo || null,
+      error: null,
+      screen: next.mode === "demo" ? "demo" : "session",
+      researchOpen: next.mode === "demo",
+    });
+  } catch {
+    goLanding();
+  }
+}
+
+function goLanding() {
+  location.hash = "landing";
+  setState({
+    screen: "landing",
+    session: null,
+    result: null,
+    trace: null,
+    summary: null,
+    story: null,
+    demo: null,
+    error: null,
+    counterfactual: null,
+  });
+}
+
+async function showStatic(screen) {
+  location.hash = screen;
+  await ensureContent();
+  setState({ screen, error: null });
+}
+
 root.addEventListener("click", (event) => {
   const button = event.target.closest("[data-action]");
   if (!button) return;
+  if (state.submitting && button.getAttribute("data-action") !== "toggle-research") return;
   const action = button.getAttribute("data-action");
   if (action === "start") loadTopics();
   if (action === "choose-topic") startTopic(button.getAttribute("data-topic"));
@@ -493,6 +724,8 @@ root.addEventListener("click", (event) => {
   if (action === "demo") runDemo();
   if (action === "counterfactual") runCounterfactual();
   if (action === "toggle-research") toggleResearch();
+  if (action === "reset") resetSession();
+  if (action === "landing") goLanding();
 });
 
 root.addEventListener("submit", (event) => {
@@ -503,10 +736,37 @@ root.addEventListener("submit", (event) => {
 });
 
 window.addEventListener("hashchange", () => {
-  if (location.hash === "#landing") {
-    setState({ screen: "landing", session: null, error: null });
-  }
+  const hash = (location.hash || "#landing").replace("#", "");
+  if (hash === "landing") goLanding();
+  if (hash === "architecture") showStatic("architecture");
+  if (hash === "evidence") showStatic("evidence");
+  if (hash === "limitations") showStatic("limitations");
+  if (hash === "counterfactual" && !state.counterfactual) runCounterfactual();
 });
 
 subscribe(render);
-render();
+ensureContent().then(async () => {
+  const hash = (location.hash || "").replace("#", "");
+  if (hash === "architecture" || hash === "evidence" || hash === "limitations") {
+    setState({ screen: hash });
+    return;
+  }
+  const saved = readPersisted();
+  if (saved?.session_id) {
+    try {
+      const session = await api.getSession(saved.session_id);
+      const trace = session.progress?.completed ? await api.trace(saved.session_id) : null;
+      setState({
+        session,
+        trace,
+        screen: saved.screen === "feedback" ? "feedback" : session.complete ? "summary" : "session",
+        researchOpen: Boolean(saved.researchOpen),
+        result: session.last_result,
+      });
+      return;
+    } catch {
+      sessionStorage.removeItem(STORAGE_KEY);
+    }
+  }
+  render();
+});

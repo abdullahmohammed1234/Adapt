@@ -8,10 +8,12 @@ from __future__ import annotations
 
 from typing import Any
 
-from adapt.models.enums import AnswerStatus, ReasoningQuality, StrategyName
+from adapt.models.enums import AnswerStatus, Difficulty, ReasoningQuality, StrategyName
 from adapt.models.evidence import Evidence
 from adapt.models.learner_state import LearnerState
+from adapt.product.labels import strategy_label
 from adapt.product.topics import CONCEPT_LABELS, topic_for_concept
+from adapt.product.trace_explain import human_trace_explanation
 from adapt.tutor.session import StepTrace, TutorSession
 
 LEARNER_STRATEGY_MESSAGES = {
@@ -187,10 +189,26 @@ def adaptation_from_step(step: StepTrace) -> dict[str, Any]:
     changed = step.strategy_before.current_strategy != step.strategy_after.current_strategy
     message = learner_strategy_message(step.decision)
     supporting = supporting_from_codes(step.reason_codes, message)
-    if changed:
-        headline = "ADAPT adjusted your next challenge"
+    explanation = human_trace_explanation(step)
+    mastery_arrow = ARROW[delta_arrow(step.state_before.mastery_estimate, step.state_after.mastery_estimate)]
+    if changed or step.decision in {
+        StrategyName.INCREASE,
+        StrategyName.PROBE,
+        StrategyName.REMEDIATE,
+        StrategyName.DECREASE,
+        StrategyName.RECOVER,
+    }:
+        headline = "ADAPTATION DETECTED"
     else:
         headline = "ADAPT is staying with this approach"
+    next_difficulty = step.next_challenge.difficulty
+    current_difficulty = step.challenge.difficulty
+    if next_difficulty == Difficulty.HARD and current_difficulty != Difficulty.HARD:
+        next_line = f"Harder {concept_label(step.next_challenge.concept_id).lower()} challenge"
+    elif next_difficulty == Difficulty.EASY and current_difficulty != Difficulty.EASY:
+        next_line = f"Simpler {concept_label(step.next_challenge.concept_id).lower()} challenge"
+    else:
+        next_line = f"Next {concept_label(step.next_challenge.concept_id).lower()} challenge"
     return {
         "visible": True,
         "strategy_changed": changed,
@@ -198,8 +216,14 @@ def adaptation_from_step(step: StepTrace) -> dict[str, Any]:
         "message": message,
         "supporting": supporting,
         "decision": step.decision.value,
+        "decision_label": strategy_label(step.decision),
         "reason": step.reason,
         "reason_codes": list(step.reason_codes),
+        "mastery_arrow": mastery_arrow,
+        "state_line": f"Mastery {mastery_arrow}",
+        "next_line": next_line,
+        "evidence_line": explanation["evidence"],
+        "explanation": explanation,
     }
 
 
@@ -282,6 +306,7 @@ def chain_link(step: StepTrace, *, include_answers: bool = True) -> dict[str, An
         "challenge": challenge_view(step.challenge, include_answer=include_answers),
         "next_challenge": challenge_view(step.next_challenge, include_answer=include_answers),
         "explanation": step.explanation,
+        "human_explanation": human_trace_explanation(step),
         "feedback": feedback_from_evidence(step.evidence),
         "adaptation": adaptation_from_step(step),
     }

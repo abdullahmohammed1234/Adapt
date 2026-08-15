@@ -9,6 +9,7 @@ export const state = {
   summary: null,
   story: null,
   counterfactual: null,
+  content: null,
   researchOpen: false,
   submitting: false,
   loading: false,
