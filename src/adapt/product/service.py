@@ -185,6 +185,9 @@ class ProductService:
     def content(self) -> dict[str, Any]:
         payload = product_content()
         payload["catalog"] = CATALOG.metrics()
+        from adapt.product.rotation import POLICY, RECENT_WINDOW
+
+        payload["rotation"] = {"window": RECENT_WINDOW, "policy": POLICY}
         return payload
 
     def _resolve_topic(self, topic_id: str):
@@ -720,6 +723,11 @@ class ProductService:
             )
         )
         payload["concept_id"] = meta.concept_id
+        payload["recent_challenge_ids"] = list(session.used_challenge_ids)
+        payload["rotation"] = {
+            "window": 8,
+            "policy": "avoid the same challenge in the recent window unless the bank is exhausted or the strategy is REMEDIATE",
+        }
         if meta.mode == "demo":
             payload["demo_label"] = DEMO_SCENARIO_LABEL
         return payload

@@ -149,40 +149,46 @@ function domainVisual(kind) {
 
 function landing() {
   const content = state.content;
-  const learnerChain = content?.learner_chain || ["I answer", "ADAPT observes", "ADAPT understands", "ADAPT decides", "ADAPT changes", "I learn"];
+  const learnerChain = content?.product_loop || ["Choose", "Learn", "Answer", "ADAPT notices", "Adaptation", "Improve"];
+  const cards = subjectCards(state.subjects || []);
   return `
     ${topbar(null)}
-    <main id="main">
+    <main id="main" data-screen="landing">
       ${errorBanner()}
       <section class="hero">
         <p class="kicker">ADAPT</p>
-        <h1>Learn differently with ADAPT.</h1>
-        <p class="lede">
-          An adaptive tutor that changes what you learn next based on how you learn.
-        </p>
+        <h1>Learn differently.</h1>
+        <p class="lede">ADAPT changes what you learn next based on how you learn.</p>
         <p class="tagline">A tutor that adapts to how you learn, not just whether you are right.</p>
+        <p class="muted">Learn differently with ADAPT. An adaptive tutor that changes what you learn next based on how you learn.</p>
         <div class="cta-row">
           <button class="btn" type="button" data-action="start">Start Learning</button>
           <button class="btn btn-secondary" type="button" data-action="explore">See How ADAPT Works</button>
         </div>
       </section>
-      <section class="how-it-adapts">
-        <h2>What you will notice</h2>
+      <section class="how-it-adapts" data-screen="explore">
+        <div class="explore-head">
+          <div>
+            <p class="kicker">Explore a subject</p>
+            <h2>What do you want to explore?</h2>
+          </div>
+        </div>
+        <div class="subject-grid">${cards || "<p class='loading'>Loading subjects…</p>"}</div>
         ${chainGraphic(learnerChain)}
-        <p class="muted">ADAPT observes how you answer, then changes what happens next.</p>
+        <p class="muted">ADAPT notices how you answer, then changes what happens next.</p>
       </section>
     </main>
   `;
 }
 
-function subjects() {
-  const cards = (state.subjects || [])
+function subjectCards(list) {
+  return (list || [])
     .map((subject) => {
       const percent = subject.mastery_percent;
       const action = subject.action_label || (percent == null ? "Start" : "Continue");
-      const status = subject.status_label || (percent == null ? "New" : "In progress");
+      const status = subject.honesty_label || subject.status_label || (percent == null ? "New" : "In progress");
       return `
-        <button class="subject-card" type="button" data-action="choose-subject" data-subject="${escapeHtml(subject.subject_id)}">
+        <button class="subject-card" type="button" data-action="choose-subject" data-subject="${escapeHtml(subject.subject_id)}" aria-label="${escapeHtml(subject.name)}">
           <span class="subject-icon" aria-hidden="true">${escapeHtml(subject.icon)}</span>
           <span class="subject-name">${escapeHtml(subject.name)}</span>
           <span class="subject-blurb">${escapeHtml(subject.blurb || "")}</span>
@@ -194,12 +200,16 @@ function subjects() {
       `;
     })
     .join("");
+}
+
+function subjects() {
+  const cards = subjectCards(state.subjects || []);
   return `
     ${topbar(null)}
-    <main id="main">
+    <main id="main" data-screen="subjects">
       ${errorBanner()}
       <p class="kicker">Learn</p>
-      <h1>What do you want to learn?</h1>
+      <h1>What do you want to explore?</h1>
       <p class="lede">Choose a subject. ADAPT will change what comes next based on how you answer.</p>
       <div class="subject-grid">${cards || "<p class='loading'>Loading subjects…</p>"}</div>
     </main>
@@ -218,8 +228,9 @@ function topics() {
         <button class="concept-card" type="button" data-action="choose-concept" data-concept="${escapeHtml(concept.concept_id)}" data-topic="${escapeHtml(concept.topic_id)}" data-subject="${escapeHtml(subject.subject_id)}">
           <span class="concept-name">${escapeHtml(concept.name)}</span>
           <span class="concept-blurb">${escapeHtml(concept.description || "")}</span>
+          <span class="concept-meta">${escapeHtml(concept.difficulty_label || concept.tier || "")}</span>
           ${concept.recommended ? `<span class="rec-chip">Recommended</span>` : ""}
-          <span class="status-chip ${escapeHtml(concept.status || "new")}">${escapeHtml(status)}</span>
+          <span class="status-chip ${escapeHtml(concept.status || "new")}">${escapeHtml(concept.honesty_label || status)}</span>
           ${masteryBar(percent)}
           <span class="muted">${escapeHtml(concept.action_label || "Start learning")}</span>
         </button>
@@ -228,7 +239,7 @@ function topics() {
     .join("");
   return `
     ${topbar(null)}
-    <main id="main" data-theme="${escapeHtml(theme)}">
+    <main id="main" data-theme="${escapeHtml(theme)}" data-screen="concepts">
       ${errorBanner()}
       <p class="kicker">${escapeHtml(subject.icon || "")} ${escapeHtml(subject.name)}</p>
       <h1>${escapeHtml(subject.name)}</h1>
@@ -272,7 +283,7 @@ function approachControls(plan) {
   if (!options.length) return "";
   return `
     <fieldset class="approach">
-      <legend>How did you approach it?</legend>
+      <legend>How did you approach this?</legend>
       <p class="muted">Optional — this helps ADAPT understand your thinking.</p>
       ${options
         .map(
@@ -289,14 +300,13 @@ function approachControls(plan) {
 }
 
 function confidenceControls(session) {
-  const scale = session.evidence_plan?.confidence_visual || [];
+  const scale = session.evidence_plan?.confidence_quick || [];
   const items = scale.length
     ? scale
     : [
         { value: 1, label: "Not sure", emoji: "😕" },
-        { value: 3, label: "Somewhat sure", emoji: "😐" },
-        { value: 4, label: "Sure", emoji: "🙂" },
-        { value: 5, label: "Very sure", emoji: "😎" },
+        { value: 3, label: "Somewhat", emoji: "🙂" },
+        { value: 5, label: "Very confident", emoji: "😎" },
       ];
   return `
     <fieldset class="confidence" role="radiogroup" aria-labelledby="confidence-label">
@@ -336,7 +346,7 @@ function challengeScreen(session) {
   const prompt = challenge.prompt_display || challenge.prompt;
   const codeLike = session.presentation?.code_like;
   return `
-    <form class="card challenge-card" id="challenge-form">
+    <form class="card challenge-card" id="challenge-form" data-screen="challenge">
       <p class="kicker">${escapeHtml(topic.name || "")}</p>
       <p class="progress-label">Question ${escapeHtml(String(progress.current || 1))} / ${escapeHtml(String(progress.total || 10))}</p>
       ${challengeVisual(session)}
@@ -345,12 +355,12 @@ function challengeScreen(session) {
       ${confidenceControls(session)}
       ${approachControls(plan)}
       <details class="optional-explain">
-        <summary>${escapeHtml(plan.note_prompt || "Add a note")}</summary>
-        <label class="sr-only" for="reasoning">Optional note</label>
+        <summary>Want to explain?</summary>
+        <label class="sr-only" for="reasoning">Optional explanation</label>
         <textarea id="reasoning" name="explanation" ${disabled} maxlength="20000" placeholder="${escapeHtml(plan.reasoning_help || "Optional — this helps ADAPT understand your thinking.")}"></textarea>
       </details>
       <div class="form-actions">
-        <button class="btn" type="submit" ${disabled}>${state.submitting ? "ADAPT is thinking…" : "Submit"}</button>
+        <button class="btn" type="submit" ${disabled}>${state.submitting ? "ADAPT is thinking…" : "Check Answer"}</button>
       </div>
     </form>
   `;
@@ -358,26 +368,22 @@ function challengeScreen(session) {
 
 function adaptationView(view) {
   if (!view) return "";
-  const blocks = [
-    view.noticed,
-    view.thinks,
-    view.doing,
-    view.next,
-  ].filter(Boolean);
-  const items = blocks
-    .map(
-      (block, index) => `
-        <li>
-          <article class="chain-card">
-            <h3>${escapeHtml(block.title)}</h3>
-            <p>${escapeHtml(block.text)}</p>
-          </article>
-          ${index < blocks.length - 1 ? `<span class="arrow" aria-hidden="true">↓</span>` : ""}
-        </li>
-      `
-    )
-    .join("");
-  return `<ol class="adapt-chain">${items}</ol>`;
+  const moment = view.moment || {};
+  const doing = view.doing?.text || "";
+  const copy = view.moment_copy || view.why_next || "";
+  return `
+    <section class="card" data-screen="adaptation">
+      <p class="kicker">Adaptation</p>
+      <div class="moment" aria-label="How ADAPT adapted">
+        <div class="moment-step"><strong>YOUR RESPONSE</strong><span>${escapeHtml(view.noticed?.text || "")}</span></div>
+        <span class="arrow" aria-hidden="true">↓</span>
+        <div class="moment-step"><strong>ADAPT NOTICED</strong><span>${escapeHtml(doing)}</span></div>
+        <span class="arrow" aria-hidden="true">↓</span>
+        <div class="moment-step"><strong>YOUR NEXT STEP</strong><span>${escapeHtml(view.next?.text || copy)}</span></div>
+      </div>
+      <p>${escapeHtml(copy)}</p>
+    </section>
+  `;
 }
 
 function feedbackScreen(session) {
@@ -388,13 +394,14 @@ function feedbackScreen(session) {
   const noticed = result.noticed;
   const why = result.why_this_question;
   const passed = feedback.answer_status === "CORRECT";
-  const headline = explanation.headline || (passed ? "Correct" : "Not quite.");
+  const headline = explanation.headline || (passed ? "Nice work." : "Not quite.");
   const short = explanation.short_message || noticed?.summary || feedback.detail || "";
   const detailed = explanation.detailed_message || "";
+  const noticedBody = noticed?.body || noticed?.headline || noticed?.summary || explanation.noticed || "";
   return `
-    <section class="card feedback-card" data-tone="${escapeHtml(feedback.tone)}" aria-live="polite">
+    <section class="card feedback-card" data-tone="${escapeHtml(feedback.tone)}" data-screen="feedback" aria-live="polite">
       <p class="kicker">Result</p>
-      <h2>${passed ? "✓ " : ""}${escapeHtml(headline)}</h2>
+      <h2>${passed ? "Nice work." : escapeHtml(headline)}</h2>
       <p>${escapeHtml(short)}</p>
       ${
         detailed && detailed !== short
@@ -405,11 +412,11 @@ function feedbackScreen(session) {
           : ""
       }
     </section>
-    <section class="card feedback-block">
-      <h3>What ADAPT noticed</h3>
-      <p>${escapeHtml(noticed?.summary || explanation.noticed || "")}</p>
+    <section class="card noticed-card feedback-block" data-screen="noticed">
+      <h3>✦ What ADAPT noticed</h3>
+      <p>${escapeHtml(noticedBody)}</p>
     </section>
-    <section class="card feedback-block">
+    <section class="card feedback-block" data-screen="why">
       <h3>Why this question?</h3>
       <p>${escapeHtml(why?.text || explanation.why_next || "")}</p>
     </section>
@@ -507,7 +514,7 @@ function progressScreen() {
   const subjects = (progress.subjects || [])
     .map((subject) => {
       const pct = subject.mastery_percent;
-      return `<div class="progress-row"><span>${escapeHtml(subject.icon)} ${escapeHtml(subject.name)}</span>${masteryBar(pct)}</div>`;
+      return `<div class="progress-row"><span>${escapeHtml(subject.icon)} ${escapeHtml(subject.name)} · ${escapeHtml(subject.honesty_label || subject.status_label || "")}</span>${masteryBar(pct)}</div>`;
     })
     .join("");
   const concepts = (progress.concept_map || [])
@@ -523,7 +530,7 @@ function progressScreen() {
     ${topbar(state.session)}
     <main id="main" class="narrow">
       <p class="kicker">Progress</p>
-      <h1>Your progress</h1>
+      <h1>Your Journey</h1>
       ${overall}
       <p class="muted">Challenges completed this visit: ${escapeHtml(String(progress.challenges_completed || 0))}</p>
       <h2>Subjects explored</h2>
@@ -548,6 +555,7 @@ function insightsScreen() {
       <p class="kicker">Insights</p>
       <h1>Learning insights</h1>
       <section class="card">
+        ${(insights.lines || []).map((line) => `<p class="insight-line">✦ ${escapeHtml(line)}</p>`).join("") || ""}
         <h2>What you're good at</h2>
         <p>${escapeHtml(insights.good_at || "Not enough recorded evidence yet.")}</p>
         <h2>Areas to practice</h2>
@@ -567,7 +575,18 @@ function insightsScreen() {
 function journeyScreen() {
   const journey = state.journey || state.summary?.journey || {};
   const catalog = journey.catalog || (journey.steps && journey.steps[0]?.kind === "concept" ? journey : null);
-  const steps = (catalog?.steps || journey.steps || []).filter((step) => step.kind !== "decision" || catalog);
+  const stages = journey.stages || [];
+  const stageItems = stages
+    .map(
+      (step, index) => `
+        <div class="journey-step" data-status="${escapeHtml(step.status || "")}">
+          <span class="journey-marker" aria-hidden="true">${escapeHtml(step.marker || "○")}</span>
+          <span><strong>${escapeHtml(step.name)}</strong></span>
+        </div>
+        ${index < stages.length - 1 ? `<span class="arrow" aria-hidden="true">↓</span>` : ""}
+      `
+    )
+    .join("");
   const display = catalog?.steps || journey.steps || [];
   const items = display
     .map((step, index) => {
@@ -597,6 +616,7 @@ function journeyScreen() {
     <main id="main" class="narrow">
       <p class="kicker">Journey</p>
       <h1>Your Journey</h1>
+      ${stageItems ? `<div class="journey">${stageItems}</div>` : ""}
       <div class="journey">${items || "<p class='muted'>Start a subject to see your path.</p>"}</div>
       ${detail}
       <p class="muted">${escapeHtml(catalog?.disclaimer || journey.disclaimer || "")}</p>
@@ -636,6 +656,7 @@ function counterfactualScreen() {
       <p class="kicker">${escapeHtml(cf.label || "DEMO SCENARIO")}</p>
       <h1>Same starting point</h1>
       <p class="lede">${escapeHtml(cf.headline || "Different evidence. Different decision.")}</p>
+      <p class="muted">Same start + different evidence = different adaptation.</p>
       <div class="split">
         ${card(cf.learner_a, "Strong reasoning. High confidence.")}
         ${card(cf.learner_b, "Weak reasoning. Low confidence.")}
@@ -1083,6 +1104,12 @@ window.addEventListener("hashchange", () => {
 subscribe(render);
 ensureContent().then(async () => {
   learnerId();
+  try {
+    const data = await api.subjects(learnerId());
+    setState({ subjects: data.subjects });
+  } catch {
+    /* landing can still render */
+  }
   const hash = (location.hash || "").replace("#", "");
   if (hash === "architecture" || hash === "evidence" || hash === "limitations" || hash === "how-it-works") {
     setState({ screen: hash === "how-it-works" ? "architecture" : hash || "architecture" });

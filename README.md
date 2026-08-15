@@ -61,6 +61,12 @@ Competition demo (guided path + counterfactual, seed `20260814`):
 python demo/run_competition_demo.py
 ```
 
+Phase 9 product demo (lightweight answers, seed `20260815`):
+
+```bash
+python demo/run_phase9_demo.py
+```
+
 ## Counterfactual
 
 The key experiment is:
@@ -87,6 +93,7 @@ These are engineering benchmarks of adaptive decision behavior. They are **not**
 | 5 | Human learning evaluation: **INCONCLUSIVE**; **n = 0** |
 | 7 | 7 domains; 50 concepts; 14 challenge types; repetition and counterfactual preserved |
 | 8 | Product UX layer; explanations from traces; engine preserved; usability PENDING (n=0) |
+| 9 | Competitive product polish; lightweight evidence; challenge diversity; expanded catalog; engine preserved |
 
 ## Architecture
 
@@ -106,7 +113,7 @@ Challenge Selector
 Next Challenge
 ```
 
-The application boundary is `ProductService` → `AdaptiveTutor`. Historical Phase 1–5 engine logic is frozen. Phase 7 adds a content catalog around that engine. Phase 8 is a learner UX and explanation layer; it does not change adaptive decisions.
+The application boundary is `ProductService` → `AdaptiveTutor`. Historical Phase 1–5 engine logic is frozen. Phase 7 adds a content catalog around that engine. Phase 8 is a learner UX and explanation layer; it does not change adaptive decisions. Phase 9 polishes the product experience around the same frozen engine.
 
 ## Testing
 
@@ -125,7 +132,7 @@ python -m benchmarks.run_no_persist
 - Phase 1F fraction-subtraction boundary (G-001-B).
 - Phase 1F delayed-misconception vs regression boundary (G-003), later addressed in Phase 2 and kept as historical evidence.
 - Phase 5 human participants = 0, so H1 is INCONCLUSIVE.
-- Phase 4 formative usability study is incomplete (0 / 5 PENDING). Phase 8 usability is also PENDING (0 / 5).
+- Phase 4 formative usability study is incomplete (0 / 5 PENDING). Phase 8 and Phase 9 usability are also PENDING (0 / 5).
 - No claim of educational efficacy.
 - Heuristic, deterministic evidence analysis — not an LLM.
 - Curated multi-domain catalog (not a complete curriculum).
@@ -147,10 +154,11 @@ adapt/
 │   ├── phase4/
 │   ├── phase5/
 │   ├── phase7/
-│   └── phase8/
+│   ├── phase8/
+│   └── phase9/
 ├── tests/
 ├── docs/
-│   ├── phase-1/ … phase-8/
+│   ├── phase-1/ … phase-9/
 │   └── competition/
 ├── results/            # historical benchmark artifacts (do not rewrite)
 ├── demo/

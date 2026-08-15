@@ -28,13 +28,13 @@ The product promise is: a tutor that adapts to how you learn, not just whether y
 
 ## 0:55–1:45 — Live demo
 
-Open the app. Start on Basic Algebra.
+Open the app. Start Learning. Choose Quantum or Mathematics.
 
-Show the initial state: mastery uncertain, confidence low, strategy ASSESS.
+Show the challenge: a short question, a quick confidence tap, optional approach. No essay required.
 
-Submit a correct answer with strong reasoning and high confidence.
+Submit a correct answer with high confidence.
 
-Point to the adaptation moment: evidence detected, mastery moves, strategy becomes INCREASE DIFFICULTY, the next challenge is harder.
+Point to What ADAPT noticed and the adaptation moment: evidence detected, strategy from AdaptiveTutor, the next challenge changes.
 
 Then submit uncertain or misconception evidence and show the strategy change to PROBE or REMEDIATE — whichever the frozen engine actually produces.
 

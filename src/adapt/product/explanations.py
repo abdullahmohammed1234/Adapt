@@ -42,14 +42,25 @@ LEARNER_WHY = {
 }
 
 LEARNER_DOING = {
-    StrategyName.INCREASE: "Increase difficulty",
-    StrategyName.MAINTAIN: "Keep this level",
-    StrategyName.PROBE: "Check understanding another way",
-    StrategyName.REMEDIATE: "Work on this idea directly",
-    StrategyName.GATHER_EVIDENCE: "Gather a bit more evidence",
-    StrategyName.DECREASE: "Simplify the next challenge",
-    StrategyName.ASSESS: "See how you approach this",
-    StrategyName.RECOVER: "Move forward",
+    StrategyName.INCREASE: "↗ Increasing difficulty",
+    StrategyName.MAINTAIN: "◎ Staying at this level",
+    StrategyName.PROBE: "◎ Probing",
+    StrategyName.REMEDIATE: "↻ Remediating",
+    StrategyName.GATHER_EVIDENCE: "◎ Gathering evidence",
+    StrategyName.DECREASE: "↘ Simplifying",
+    StrategyName.ASSESS: "◎ Seeing how you approach this",
+    StrategyName.RECOVER: "↗ Moving forward",
+}
+
+LEARNER_MOMENT = {
+    StrategyName.INCREASE: "You're ready for a bigger challenge.",
+    StrategyName.MAINTAIN: "Let's stay here and keep practicing.",
+    StrategyName.PROBE: "Let's check your understanding from another angle.",
+    StrategyName.REMEDIATE: "Let's work on this idea before moving on.",
+    StrategyName.GATHER_EVIDENCE: "ADAPT needs a little more evidence first.",
+    StrategyName.DECREASE: "Let's rebuild this from a simpler version.",
+    StrategyName.ASSESS: "This opening question helps ADAPT see how you think.",
+    StrategyName.RECOVER: "Your recent answers improved, so we can move forward.",
 }
 
 LEARNER_NEXT = {
@@ -246,6 +257,11 @@ def learner_adaptation_chain(step: StepTrace) -> dict[str, Any]:
     return {
         "title": "How ADAPT adapted",
         "from_trace": True,
+        "moment": {
+            "response": "Your response",
+            "noticed": "ADAPT noticed",
+            "next": "Your next step",
+        },
         "noticed": {
             "title": "What ADAPT noticed",
             "text": explanation["noticed"],
@@ -264,6 +280,7 @@ def learner_adaptation_chain(step: StepTrace) -> dict[str, Any]:
         },
         "why_next": explanation["why_next"],
         "decision": step.decision.value,
+        "moment_copy": LEARNER_MOMENT.get(step.decision, explanation["why_next"]),
     }
 
 

@@ -6,7 +6,7 @@ Deterministic. Uses `AdaptiveTutor`. No API key.
 python -m app
 ```
 
-Open http://127.0.0.1:8765. Optional CLI: `python demo/run_competition_demo.py`.
+Optional CLI: `python demo/run_competition_demo.py` or `python demo/run_phase9_demo.py`.
 
 Label on screen: **DEMO SCENARIO** when using the guided demo. These are demonstrations of system behavior, not human study results.
 
@@ -22,9 +22,9 @@ Say: ADAPT changes what you learn next based on how you answer — not only whet
 
 ## 0:20–1:00 — Learn something
 
-Click **Start Learning**. Choose Quantum or another subject. Open a concept. Answer 1–2 challenges with the visual confidence control. Reasoning is optional.
+Click **Start Learning**. Choose Quantum or another subject. Open a concept. Answer with a short choice or number, tap confidence (Not sure / Somewhat / Very confident), and optionally how you approached it. Long typing is optional.
 
-Show concise feedback: Result, What ADAPT noticed, Why this question?
+Show concise feedback: Result, What ADAPT noticed, Why this question?, then the adaptation moment (Your response → ADAPT noticed → Your next step).
 
 Do not invent the strategy. Read what the product shows from the engine.
 

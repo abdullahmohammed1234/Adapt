@@ -19,6 +19,13 @@ PRODUCT_CHALLENGE_TYPES = (
     "COMPARE",
     "SCENARIO",
     "SEQUENCE",
+    "NUMERIC",
+    "SHORT_ANSWER",
+    "DEBUG",
+    "MATCH",
+    "DIAGRAM",
+    "ESTIMATION",
+    "EXPLAIN_CHOICE",
 )
 
 TYPE_TO_ENGINE = {
@@ -36,6 +43,13 @@ TYPE_TO_ENGINE = {
     "COMPARE": ChallengeType.DIAGNOSTIC,
     "SCENARIO": ChallengeType.TRANSFER,
     "SEQUENCE": ChallengeType.PRACTICE,
+    "NUMERIC": ChallengeType.STANDARD,
+    "SHORT_ANSWER": ChallengeType.STANDARD,
+    "DEBUG": ChallengeType.DIAGNOSTIC,
+    "MATCH": ChallengeType.DIAGNOSTIC,
+    "DIAGRAM": ChallengeType.STANDARD,
+    "ESTIMATION": ChallengeType.STANDARD,
+    "EXPLAIN_CHOICE": ChallengeType.PROBE,
 }
 
 DEFAULT_STRATEGY_FIT = {
@@ -53,6 +67,13 @@ DEFAULT_STRATEGY_FIT = {
     "COMPARE": ("PROBE", "GATHER_EVIDENCE", "ASSESS", "REMEDIATE"),
     "SCENARIO": ("INCREASE", "MAINTAIN", "PROBE"),
     "SEQUENCE": ("MAINTAIN", "GATHER_EVIDENCE", "ASSESS"),
+    "NUMERIC": ("MAINTAIN", "GATHER_EVIDENCE", "ASSESS", "DECREASE", "RECOVER"),
+    "SHORT_ANSWER": ("MAINTAIN", "GATHER_EVIDENCE", "ASSESS", "PROBE"),
+    "DEBUG": ("PROBE", "GATHER_EVIDENCE", "ASSESS", "REMEDIATE"),
+    "MATCH": ("PROBE", "GATHER_EVIDENCE", "ASSESS", "MAINTAIN"),
+    "DIAGRAM": ("MAINTAIN", "PROBE", "GATHER_EVIDENCE", "ASSESS"),
+    "ESTIMATION": ("MAINTAIN", "PROBE", "INCREASE"),
+    "EXPLAIN_CHOICE": ("PROBE", "GATHER_EVIDENCE", "ASSESS"),
 }
 
 
@@ -73,7 +94,14 @@ def engine_difficulty_to_product(difficulty: Difficulty) -> int:
 
 
 def engine_type_for_product(product_type: str, *, difficulty: int) -> ChallengeType:
-    if difficulty >= 4 and product_type in {"DIRECT", "APPLICATION", "TRANSFER", "SCENARIO"}:
+    if difficulty >= 4 and product_type in {
+        "DIRECT",
+        "APPLICATION",
+        "TRANSFER",
+        "SCENARIO",
+        "NUMERIC",
+        "ESTIMATION",
+    }:
         return ChallengeType.INCREASED_DIFFICULTY
     return TYPE_TO_ENGINE.get(product_type, ChallengeType.STANDARD)
 

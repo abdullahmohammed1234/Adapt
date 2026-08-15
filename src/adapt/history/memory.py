@@ -51,7 +51,7 @@ class ChallengeHistory:
             return []
         return list(self.attempts[-window:])
 
-    def recently_seen(self, challenge_id: str, *, window: int = 3) -> bool:
+    def recently_seen(self, challenge_id: str, *, window: int = 8) -> bool:
         return any(item.challenge_id == challenge_id for item in self.recent(window))
 
     def family_recent(self, family_id: str, *, window: int = 4) -> bool:

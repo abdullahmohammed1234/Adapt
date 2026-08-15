@@ -23,6 +23,15 @@ STATUS_LABELS = {
     STATUS_COMPLETED: "Completed",
 }
 
+HONESTY_LABELS = {
+    STATUS_NEW: "Not started",
+    STATUS_IN_PROGRESS: "Explored",
+    STATUS_PRACTICING: "Building confidence",
+    STATUS_STRONG: "Strong evidence",
+    STATUS_NEEDS_ATTENTION: "Still uncertain",
+    STATUS_COMPLETED: "Strong evidence",
+}
+
 PERSISTENCE_NOTE = (
     "Progress shown here is from this visit while ADAPT is running. "
     "It is not a long-term saved learning record, and it is not a claim "
@@ -66,6 +75,12 @@ def concept_status_view(
         **concept.to_dict(mastery=mastery),
         "status": status,
         "status_label": STATUS_LABELS[status],
+        "honesty_label": HONESTY_LABELS[status],
+        "difficulty_label": {
+            "BEGINNER": "Introductory",
+            "INTERMEDIATE": "Intermediate",
+            "ADVANCED": "Advanced",
+        }.get(concept.tier, concept.tier),
         "progress_percent": percent,
         "recommended": recommended,
         "attempts": attempts,
@@ -92,6 +107,7 @@ def subject_progress_row(
         "mastery_percent": percent,
         "progress_available": percent is not None,
         "status_label": "In progress" if started else "New",
+        "honesty_label": "Explored" if started else "Not started",
         "action_label": "Continue" if started else "Start",
         "concepts_started": started,
         "concepts_total": len(concepts),

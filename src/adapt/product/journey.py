@@ -12,6 +12,58 @@ from adapt.product.trace_explain import human_trace_explanation
 from adapt.tutor.session import TutorSession
 
 
+def journey_stages(session: TutorSession) -> list[dict[str, Any]]:
+    """Learner-facing path. Does not claim mastery from mere completion."""
+    traces = session.traces
+    increased = any(step.decision.value == "INCREASE" for step in traces)
+    remediated = any(step.decision.value == "REMEDIATE" for step in traces)
+    strong = False
+    if traces:
+        last = traces[-1].state_after
+        strong = last.mastery_estimate >= 0.7 and last.evidence_strength.value in {"MODERATE", "STRONG"}
+    current_name = concept_label(session.concept_id)
+    if traces:
+        current_name = concept_label(session.current_challenge.concept_id)
+    stages = [
+        {
+            "id": "foundations",
+            "name": "Foundations",
+            "status": "completed" if traces else "in_progress",
+            "marker": "✓" if traces else "◉",
+        },
+        {
+            "id": "core",
+            "name": "Core concept",
+            "status": "completed" if traces else "upcoming",
+            "marker": "✓" if traces else "○",
+        },
+        {
+            "id": "current",
+            "name": current_name or "Current challenge",
+            "status": "in_progress",
+            "marker": "◉",
+        },
+        {
+            "id": "advanced",
+            "name": "Advanced application",
+            "status": "completed" if increased else "upcoming",
+            "marker": "✓" if increased else "○",
+        },
+        {
+            "id": "check",
+            "name": "Mastery check",
+            "status": "completed" if strong else "upcoming",
+            "marker": "✓" if strong else "○",
+            "note": None
+            if strong
+            else "Shown only as a path marker — not a claim that the idea is mastered.",
+        },
+    ]
+    if remediated:
+        stages[1]["name"] = "Core concept (rebuilding)"
+    return stages
+
+
 def session_journey(session: TutorSession) -> dict[str, Any]:
     steps: list[dict[str, Any]] = []
     opening = (
@@ -81,6 +133,7 @@ def session_journey(session: TutorSession) -> dict[str, Any]:
         "title": "Your Journey",
         "steps": steps,
         "concepts_seen": [concept_label(cid) for cid in seen] or [concept_label(session.concept_id)],
+        "stages": journey_stages(session),
     }
 
 

@@ -46,6 +46,11 @@ def test_strategy_compatibility_is_respected():
         "TRUE_FALSE",
         "CONCEPT_CHECK",
         "REMEDIATION",
+        "DEBUG",
+        "MATCH",
+        "EXPLAIN_CHOICE",
+        "DIAGRAM",
+        "SHORT_ANSWER",
     }
 
 
