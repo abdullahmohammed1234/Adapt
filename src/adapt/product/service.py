@@ -30,6 +30,7 @@ from adapt.product.errors import (
     SessionUnavailableError,
     SubmissionError,
 )
+from adapt.product.explanations import learner_adaptation_chain, learner_explanation
 from adapt.product.experience import (
     attempt_from_step,
     combine_reasoning,
@@ -41,9 +42,11 @@ from adapt.product.experience import (
     what_adapt_noticed,
     why_this_question,
 )
+from adapt.product.journey import catalog_journey
 from adapt.product.labels import (
     DEMO_SCENARIO_LABEL,
     PROMISE_SHORT,
+    learner_strategy_plain,
     opening_state,
     strategy_label,
 )
@@ -54,6 +57,9 @@ from adapt.product.present import (
     timeline_from_session,
     understanding_view,
 )
+from adapt.product.presentation import challenge_presentation, subject_theme
+from adapt.product.progress import concept_status_view, recommend_concept_id, subject_progress_row
+from adapt.product.recommendations import recommend_for_subject
 from adapt.product.story import adaptation_story
 from adapt.product.summary import session_summary
 from adapt.product.topics import TOPICS_BY_ID, list_topics, topic_for_concept
@@ -87,6 +93,7 @@ class ProductSession:
     learner_id: str | None = None
     history: list[dict[str, Any]] = field(default_factory=list)
     last_selection: dict[str, Any] | None = None
+    concept_id: str | None = None
 
 
 class ProductService:
@@ -103,19 +110,31 @@ class ProductService:
         )
         self._meta: dict[str, ProductSession] = {}
         self._progress: dict[str, dict[str, float]] = {}
+        self._activity: dict[str, dict[str, dict[str, Any]]] = {}
         self._lock = RLock()
 
     def list_topics(self) -> list[dict[str, Any]]:
         return list_topics()
 
-    def list_subjects(self) -> list[dict[str, Any]]:
-        return CATALOG.list_subjects()
+    def list_subjects(self, *, learner_id: str | None = None) -> list[dict[str, Any]]:
+        mastery = dict(self._progress.get(learner_id or "", {}) or {})
+        activity = dict(self._activity.get(learner_id or "", {}) or {})
+        rows = []
+        for subject in CATALOG.subjects:
+            row = subject_progress_row(
+                subject.subject_id,
+                concept_mastery=mastery,
+                activity=activity,
+            )
+            rows.append(row)
+        return rows
 
     def get_subject(self, subject_id: str, *, learner_id: str | None = None) -> dict[str, Any]:
         subject = CATALOG.subject(subject_id)
         if subject is None:
             raise InvalidResponseError(f"unsupported subject: {subject_id}")
         learner_mastery = dict(self._progress.get(learner_id or "", {}) or {})
+        activity = dict(self._activity.get(learner_id or "", {}) or {})
         topics = []
         for topic in CATALOG.topics_for_subject(subject_id):
             values = [
@@ -129,10 +148,35 @@ class ProductService:
                     challenge_count=len(CATALOG.challenges_for_topic(topic.topic_id)),
                 )
             )
-        concepts = [item.to_dict() for item in CATALOG.concepts_for_subject(subject_id)]
+        concepts = []
+        recommended_id = recommend_concept_id(subject_id, learner_mastery, activity)
+        for item in CATALOG.concepts_for_subject(subject_id):
+            info = activity.get(item.concept_id) or {}
+            concepts.append(
+                concept_status_view(
+                    item,
+                    mastery=learner_mastery.get(item.concept_id),
+                    attempts=int(info.get("attempts") or 0),
+                    last_correct=info.get("last_correct"),
+                    recommended=item.concept_id == recommended_id,
+                )
+            )
         payload = subject.to_dict(concept_count=len(concepts), topic_count=len(topics))
+        payload.update(
+            subject_progress_row(
+                subject_id,
+                concept_mastery=learner_mastery,
+                activity=activity,
+            )
+        )
         payload["topics"] = topics
         payload["concepts"] = concepts
+        payload["recommended"] = recommend_for_subject(
+            subject_id,
+            concept_mastery=learner_mastery,
+            activity=activity,
+        )
+        payload["theme"] = subject_theme(subject_id)
         return payload
 
     def confidence_scale(self) -> list[dict[str, int | str]]:
@@ -161,23 +205,37 @@ class ProductService:
     def create_session(
         self,
         *,
-        topic_id: str,
+        topic_id: str = "",
         learner_id: str | None = None,
         max_steps: int = DEFAULT_MAX_STEPS,
         mode: str = "learner",
         session_id: str | None = None,
         initial_challenge: str | None = None,
         subject_id: str | None = None,
+        concept_id: str | None = None,
     ) -> dict[str, Any]:
+        if concept_id:
+            concept = CATALOG.concept(str(concept_id))
+            if concept is None:
+                raise InvalidResponseError(f"unsupported concept: {concept_id}")
+            topic_id = concept.topic_id
+            subject_id = subject_id or concept.subject_id
+            if not initial_challenge:
+                options = CATALOG.challenges_for_concept(concept.concept_id)
+                if options:
+                    initial_challenge = options[0].id
+        if not topic_id:
+            raise InvalidResponseError("topic_id or concept_id is required")
         topic, runtime, spec = self._resolve_topic(topic_id)
         resolved_learner = learner_id or f"learner-{uuid4().hex[:8]}"
         resolved_id = session_id or f"SES-{self.seed}-{uuid4().hex[:8]}"
         challenge_id = initial_challenge or topic.initial_challenge
+        engine_concept = str(concept_id or topic.concept_id)
         tutor = self.tutor if runtime == "core" else self._experience_tutor
         try:
             session = tutor.start_session(
                 learner_id=resolved_learner,
-                concept_id=topic.concept_id,
+                concept_id=engine_concept,
                 session_id=resolved_id,
                 initial_challenge=challenge_id,
             )
@@ -194,6 +252,7 @@ class ProductService:
             runtime=runtime,
             subject_id=subject_id or (spec.subject_id if spec else None),
             learner_id=resolved_learner,
+            concept_id=str(concept_id or topic.concept_id),
         )
         with self._lock:
             self._meta[session.session_id] = meta
@@ -264,6 +323,13 @@ class ProductService:
             self._progress.setdefault(learner_key, {})[step.state_after.concept_id] = (
                 step.state_after.mastery_estimate
             )
+            info = self._activity.setdefault(learner_key, {}).setdefault(
+                step.state_after.concept_id,
+                {"attempts": 0, "last_correct": None},
+            )
+            info["attempts"] = int(info.get("attempts") or 0) + 1
+            info["last_correct"] = step.evidence.answer_status.value == "CORRECT"
+            info["last_strategy"] = step.decision.value
         meta.analytics.append(
             {
                 "step": step.step_number,
@@ -317,6 +383,7 @@ class ProductService:
                 "learner_id": meta.learner_id,
                 "history": list(meta.history),
                 "last_selection": meta.last_selection,
+                "concept_id": meta.concept_id,
             },
         }
 
@@ -346,6 +413,7 @@ class ProductService:
             learner_id=product.get("learner_id"),
             history=list(product.get("history") or []),
             last_selection=product.get("last_selection"),
+            concept_id=product.get("concept_id"),
         )
         with self._lock:
             self._meta[session.session_id] = meta
@@ -465,6 +533,10 @@ class ProductService:
                 "final_decision_label": strategy_label(
                     (a_final.get("strategy") or {}).get("decision") or "ASSESS"
                 ),
+                "final_decision_plain": learner_strategy_plain(
+                    (a_final.get("strategy") or {}).get("decision") or "ASSESS"
+                ),
+                "evidence_summary": learner_a.get("summary") or "Correct · Strong reasoning · High confidence",
                 "final_challenge": (a_final.get("next_challenge") or {}).get("challenge_id"),
                 "final_mastery": (a_final.get("state") or {}).get("mastery"),
                 "explanation": a_explain,
@@ -479,6 +551,10 @@ class ProductService:
                 "final_decision_label": strategy_label(
                     (b_final.get("strategy") or {}).get("decision") or "ASSESS"
                 ),
+                "final_decision_plain": learner_strategy_plain(
+                    (b_final.get("strategy") or {}).get("decision") or "ASSESS"
+                ),
+                "evidence_summary": learner_b.get("summary") or "Correct · Weak reasoning · Low confidence",
                 "final_challenge": (b_final.get("next_challenge") or {}).get("challenge_id"),
                 "final_mastery": (b_final.get("state") or {}).get("mastery"),
                 "explanation": b_explain,
@@ -487,6 +563,15 @@ class ProductService:
             "headline": "Same starting point. Different evidence. Different decision.",
             "label": DEMO_SCENARIO_LABEL,
             "promise": PROMISE_SHORT,
+            "same_start": start_challenge,
+            "chain": [
+                "Same start",
+                "Different evidence",
+                "Different state",
+                "Different strategy",
+                "Different challenge",
+            ],
+            "live_engine": True,
         }
 
     def reset_session(self, session_id: str | None = None) -> dict[str, Any]:
@@ -624,6 +709,17 @@ class ProductService:
         plan = payload["evidence_plan"]
         payload["reasoning_prompt"] = plan["reasoning_prompt"]
         payload["reasoning_help"] = plan["reasoning_help"]
+        payload["note_prompt"] = plan.get("note_prompt") or "Add a note"
+        payload["theme"] = subject_theme(meta.subject_id)
+        payload["presentation"] = (
+            None
+            if complete
+            else challenge_presentation(
+                session.current_challenge.challenge_id,
+                subject_id=meta.subject_id,
+            )
+        )
+        payload["concept_id"] = meta.concept_id
         if meta.mode == "demo":
             payload["demo_label"] = DEMO_SCENARIO_LABEL
         return payload
@@ -640,6 +736,8 @@ class ProductService:
             "human_explanation": human_trace_explanation(step),
             "noticed": what_adapt_noticed(step),
             "why_this_question": why_this_question(step, selection=selection),
+            "explanation": learner_explanation(step),
+            "adaptation_view": learner_adaptation_chain(step),
         }
 
     def _step_result_view(self, session, meta: ProductSession, *, include_research: bool) -> dict[str, Any]:
@@ -653,27 +751,64 @@ class ProductService:
 
     def get_progress(self, session_id: str | None = None, *, learner_id: str | None = None) -> dict[str, Any]:
         subject_id = None
+        session_completed = 0
+        session_concepts: list[str] = []
         if session_id:
             session, meta = self._require(session_id)
             learner_id = learner_id or meta.learner_id or session.learner_id
             subject_id = meta.subject_id
+            session_completed = session.step_number
+            session_concepts = [session.concept_id]
             self._progress.setdefault(learner_id, {})[session.concept_id] = (
                 session.learner_state.mastery_estimate
             )
         mastery = dict(self._progress.get(learner_id or "", {}) or {})
+        activity = dict(self._activity.get(learner_id or "", {}) or {})
         if not mastery and session_id:
             session, meta = self._require(session_id)
             mastery = {session.concept_id: session.learner_state.mastery_estimate}
             subject_id = meta.subject_id
-        return learner_progress_view(concept_mastery=mastery, subject_id=subject_id)
+        return learner_progress_view(
+            concept_mastery=mastery,
+            activity=activity,
+            subject_id=subject_id,
+            session_completed=session_completed,
+            session_concepts=session_concepts,
+        )
 
     def get_insights(self, session_id: str) -> dict[str, Any]:
         session, _meta = self._require(session_id)
         return session_insights(session)
 
-    def get_journey(self, session_id: str) -> dict[str, Any]:
-        session, _meta = self._require(session_id)
-        return session_journey(session)
+    def get_journey(
+        self,
+        session_id: str | None = None,
+        *,
+        learner_id: str | None = None,
+        subject_id: str | None = None,
+    ) -> dict[str, Any]:
+        if session_id:
+            session, meta = self._require(session_id)
+            payload = session_journey(session)
+            learner_id = learner_id or meta.learner_id or session.learner_id
+            subject_id = subject_id or meta.subject_id
+            mastery = dict(self._progress.get(learner_id or "", {}) or {})
+            activity = dict(self._activity.get(learner_id or "", {}) or {})
+            payload["catalog"] = catalog_journey(
+                subject_id=subject_id,
+                concept_mastery=mastery,
+                activity=activity,
+                recommended_id=recommend_concept_id(subject_id, mastery, activity) if subject_id else None,
+            )
+            return payload
+        mastery = dict(self._progress.get(learner_id or "", {}) or {})
+        activity = dict(self._activity.get(learner_id or "", {}) or {})
+        return catalog_journey(
+            subject_id=subject_id,
+            concept_mastery=mastery,
+            activity=activity,
+            recommended_id=recommend_concept_id(subject_id, mastery, activity) if subject_id else None,
+        )
 
     def _trace_view(self, session, meta: ProductSession) -> dict[str, Any]:
         chain = [chain_link(step, include_answers=True) for step in session.traces]

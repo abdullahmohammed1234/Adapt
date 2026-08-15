@@ -8,71 +8,62 @@ python -m app
 
 Open http://127.0.0.1:8765. Optional CLI: `python demo/run_competition_demo.py`.
 
-Label on screen: **DEMO SCENARIO**. These are demonstrations of system behavior, not human study results.
+Label on screen: **DEMO SCENARIO** when using the guided demo. These are demonstrations of system behavior, not human study results.
 
-## STEP 1 — Intro (~10s)
-
-Landing page:
-
-- ADAPT
-- “A tutor that adapts to how you learn, not just whether you are right.”
-- How it adapts: Answer → Evidence → Learner State → Strategy → Next Challenge
-
-Click **Watch the demo** (or **Try ADAPT** → Algebra for a live path).
-
-## STEP 2 — Initial assessment
+## 0:00–0:20 — Landing
 
 Show:
 
-- Concept: Basic Algebra
-- Mastery: uncertain
-- Confidence: low
-- Strategy: ASSESS
+- “Learn differently with ADAPT.”
+- “An adaptive tutor that changes what you learn next based on how you learn.”
+- Start Learning / See How ADAPT Works
 
-## STEP 3 — Strong evidence
+Say: ADAPT changes what you learn next based on how you answer — not only whether you are right.
 
-The guided demo submits a correct answer with strong reasoning and high confidence.
+## 0:20–1:00 — Learn something
 
-Show:
+Click **Start Learning**. Choose Quantum or another subject. Open a concept. Answer 1–2 challenges with the visual confidence control. Reasoning is optional.
 
-- Evidence detected
-- State updated (Mastery ↑ if the engine moved mastery)
-- Strategy → whatever `AdaptiveTutor` actually returns (typically INCREASE DIFFICULTY after repeated strong evidence)
+Show concise feedback: Result, What ADAPT noticed, Why this question?
 
-Do not say INCREASE unless the adaptation card shows the engine decision.
+Do not invent the strategy. Read what the product shows from the engine.
 
-## STEP 4 — Difficult challenge
+## 1:00–1:30 — Adaptive visibility
 
-The next challenge is the engine’s selected item. Point at the harder prompt.
-
-## STEP 5 — Uncertainty / misconception
-
-The scripted path then provides weak or misconception evidence.
-
-Show strategy → PROBE or REMEDIATE depending on the frozen engine.
-
-## STEP 6 — Research trace
-
-Open **Research view**.
+Stay on the feedback screen.
 
 Walk:
 
-1. Evidence — what the response told us
-2. Learner State — what changed
-3. Strategy — what instructional decision was made
-4. Next Challenge — why this item was selected
+1. What ADAPT noticed
+2. What ADAPT thinks
+3. What ADAPT is doing
+4. What’s next
 
-## STEP 7 — Counterfactual (the key moment)
+## 1:30–2:00 — Research Mode
 
-From Home, click **Counterfactual**.
+Open **Research mode**.
 
-Same starting challenge.
+Walk the real trace:
 
-- Learner A: strong reasoning, high confidence → INCREASE
-- Learner B: weak reasoning, low confidence → a different engine decision
+Evidence → Learner State → Strategy → Next Challenge
 
-Say:
+## 2:00–2:30 — Counterfactual
 
-“Same starting point. Different evidence. Different decision.”
+How ADAPT Works → Counterfactual.
+
+Same start. Different evidence.
+
+- Learner A: strong reasoning, high confidence → whatever `AdaptiveTutor` returns (typically INCREASE)
+- Learner B: weak reasoning, low confidence → a different engine decision (typically PROBE)
+
+Say: “Same starting point. Different evidence. Different decision.”
+
+## 2:30–3:00 — Breadth
+
+Return to Learn. Show the seven subjects: Mathematics, Calculus, Computer Science, Physics, Chemistry, Space, Quantum.
+
+Final line:
+
+“ADAPT doesn't just ask whether you're right. It learns from how you answer and changes what happens next.”
 
 If asked about learning improvement: Phase 5 is INCONCLUSIVE, n = 0.

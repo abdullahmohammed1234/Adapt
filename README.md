@@ -46,7 +46,7 @@ python -m app
 Open [http://127.0.0.1:8765](http://127.0.0.1:8765).
 
 - **Try ADAPT** — choose a subject (Mathematics, Calculus, Computer Science, Physics, Chemistry, Space, Quantum) and start a session.
-- **Watch the demo** — deterministic `DEMO SCENARIO` through the real engine (Algebra).
+- **How ADAPT Works** — the adaptive chain, technical evidence, and known limits.
 - **Counterfactual** — same starting point, different evidence, different decision.
 
 CLI reproduction of the guided demo:
@@ -85,6 +85,8 @@ These are engineering benchmarks of adaptive decision behavior. They are **not**
 | 3 | 44/44 end-to-end adaptation; 294/294 state-to-strategy causality; 294/294 strategy-to-challenge consistency |
 | 4 | 20/20 task completion; 119/119 engine preservation; 119/119 trace visibility |
 | 5 | Human learning evaluation: **INCONCLUSIVE**; **n = 0** |
+| 7 | 7 domains; 50 concepts; 14 challenge types; repetition and counterfactual preserved |
+| 8 | Product UX layer; explanations from traces; engine preserved; usability PENDING (n=0) |
 
 ## Architecture
 
@@ -104,7 +106,7 @@ Challenge Selector
 Next Challenge
 ```
 
-The application boundary is `ProductService` → `AdaptiveTutor`. Historical Phase 1–5 engine logic is frozen. Phase 7 adds a content catalog, challenge history, and diversity-aware selector around that engine.
+The application boundary is `ProductService` → `AdaptiveTutor`. Historical Phase 1–5 engine logic is frozen. Phase 7 adds a content catalog around that engine. Phase 8 is a learner UX and explanation layer; it does not change adaptive decisions.
 
 ## Testing
 
@@ -123,7 +125,7 @@ python -m benchmarks.run_no_persist
 - Phase 1F fraction-subtraction boundary (G-001-B).
 - Phase 1F delayed-misconception vs regression boundary (G-003), later addressed in Phase 2 and kept as historical evidence.
 - Phase 5 human participants = 0, so H1 is INCONCLUSIVE.
-- Phase 4 formative usability study is incomplete (0 / 5 PENDING).
+- Phase 4 formative usability study is incomplete (0 / 5 PENDING). Phase 8 usability is also PENDING (0 / 5).
 - No claim of educational efficacy.
 - Heuristic, deterministic evidence analysis — not an LLM.
 - Curated multi-domain catalog (not a complete curriculum).
@@ -144,10 +146,11 @@ adapt/
 │   ├── phase3/
 │   ├── phase4/
 │   ├── phase5/
-│   └── phase7/
+│   ├── phase7/
+│   └── phase8/
 ├── tests/
 ├── docs/
-│   ├── phase-1/ … phase-7/
+│   ├── phase-1/ … phase-8/
 │   └── competition/
 ├── results/            # historical benchmark artifacts (do not rewrite)
 ├── demo/

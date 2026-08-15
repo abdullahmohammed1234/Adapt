@@ -17,12 +17,16 @@ export const state = {
   counterfactual: null,
   content: null,
   researchOpen: false,
-  noticedOpen: false,
-  whyOpen: false,
+  researchPage: false,
+  noticedOpen: true,
+  whyOpen: true,
+  detailOpen: false,
+  navOpen: false,
   submitting: false,
   loading: false,
   error: null,
   demo: null,
+  learnerId: null,
 };
 
 export function setState(patch) {

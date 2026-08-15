@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from adapt.product.labels import PROMISE, PROMISE_SHORT, TAGLINE
+from adapt.product.labels import CTA_PRIMARY, CTA_SECONDARY, HERO, PROMISE, PROMISE_SHORT, SUPPORTING, TAGLINE
 
 ARCHITECTURE = (
     {
@@ -179,7 +179,19 @@ def product_content() -> dict[str, Any]:
     return {
         "promise": PROMISE,
         "promise_short": PROMISE_SHORT,
+        "hero": HERO,
+        "supporting": SUPPORTING,
+        "cta_primary": CTA_PRIMARY,
+        "cta_secondary": CTA_SECONDARY,
         "tagline": TAGLINE,
+        "learner_chain": [
+            "I answer",
+            "ADAPT observes",
+            "ADAPT understands",
+            "ADAPT decides",
+            "ADAPT changes",
+            "I learn",
+        ],
         "chain": list(CHAIN),
         "architecture": [dict(item) for item in ARCHITECTURE],
         "technical_evidence": TECHNICAL_EVIDENCE,

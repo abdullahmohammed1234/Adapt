@@ -8,14 +8,16 @@ from typing import Any
 from adapt.content.catalog import CATALOG
 from adapt.history.memory import ChallengeAttempt
 from adapt.models.enums import AnswerStatus, ReasoningQuality, StrategyName
+from adapt.product.explanations import learner_explanation, why_from_strategy
 from adapt.product.present import challenge_view, concept_label, delta_arrow
+from adapt.product.presentation import challenge_presentation, display_prompt
 from adapt.product.trace_explain import human_trace_explanation
-from adapt.selection.reasons import learner_why
 from adapt.tutor.session import StepTrace, TutorSession
 
 APPROACH_OPTIONS = (
     {"id": "knew", "label": "I knew it"},
     {"id": "worked", "label": "I worked it out"},
+    {"id": "pattern", "label": "I recognized the pattern"},
     {"id": "guessed", "label": "I guessed"},
     {"id": "unsure", "label": "I'm not sure"},
 )
@@ -23,6 +25,7 @@ APPROACH_OPTIONS = (
 APPROACH_TEXT = {
     "knew": "I knew it.",
     "worked": "I worked it out.",
+    "pattern": "I recognized the pattern.",
     "guessed": "I guessed.",
     "unsure": "I'm not sure.",
 }
@@ -33,6 +36,13 @@ CONFIDENCE_EMOJI = (
     {"value": 3, "label": "Somewhat", "emoji": "😐"},
     {"value": 4, "label": "Confident", "emoji": "🙂"},
     {"value": 5, "label": "Very confident", "emoji": "😎"},
+)
+
+CONFIDENCE_VISUAL = (
+    {"value": 1, "label": "Not sure", "emoji": "😕", "sr": "Not sure"},
+    {"value": 3, "label": "Somewhat sure", "emoji": "😐", "sr": "Somewhat sure"},
+    {"value": 4, "label": "Sure", "emoji": "🙂", "sr": "Sure"},
+    {"value": 5, "label": "Very sure", "emoji": "😎", "sr": "Very sure"},
 )
 
 
@@ -69,10 +79,13 @@ def evidence_plan(session: TutorSession, challenge) -> dict[str, Any]:
         "ask_confidence": True,
         "ask_reasoning": ask_reasoning,
         "reasoning_optional": True,
-        "reasoning_prompt": "Explain your answer" if ask_reasoning else "+ Explain your answer",
-        "reasoning_help": prompt,
+        "reasoning_prompt": "How did you approach it?",
+        "reasoning_help": "Optional — this helps ADAPT understand your thinking.",
+        "note_prompt": "Add a note",
         "approach_options": [dict(item) for item in APPROACH_OPTIONS],
         "confidence_emoji": [dict(item) for item in CONFIDENCE_EMOJI],
+        "confidence_visual": [dict(item) for item in CONFIDENCE_VISUAL],
+        "legacy_help": prompt,
     }
 
 
@@ -89,12 +102,15 @@ def public_challenge(challenge, *, include_answer: bool = False) -> dict[str, An
         extra.pop("solution", None)
     payload.update(extra)
     payload["prompt"] = meta.prompt
+    payload["prompt_display"] = display_prompt(meta.prompt)
     payload["challenge_id"] = meta.id
+    payload["presentation"] = challenge_presentation(meta.id, subject_id=meta.domain)
     return payload
 
 
 def what_adapt_noticed(step: StepTrace) -> dict[str, Any]:
     evidence = step.evidence
+    learner = learner_explanation(step)
     bullets: list[dict[str, Any]] = []
     correct = evidence.answer_status == AnswerStatus.CORRECT
     bullets.append({"ok": correct, "text": "Correct answer" if correct else "Not quite"})
@@ -114,22 +130,10 @@ def what_adapt_noticed(step: StepTrace) -> dict[str, Any]:
         bullets.append({"ok": False, "text": "A specific mix-up showed up"})
     mastery = max(0.0, min(1.0, float(step.state_after.mastery_estimate)))
     arrow = delta_arrow(step.state_before.mastery_estimate, step.state_after.mastery_estimate)
-    if step.decision == StrategyName.INCREASE:
-        summary = "Your evidence suggests you are ready for a harder challenge."
-    elif step.decision == StrategyName.PROBE:
-        summary = "ADAPT wants another look before treating this as solid mastery."
-    elif step.decision == StrategyName.REMEDIATE:
-        summary = "ADAPT is approaching this idea from another angle."
-    elif step.decision == StrategyName.DECREASE:
-        summary = "ADAPT is rebuilding this from a simpler version."
-    elif correct and evidence.confidence_signal.value == "LOW":
-        summary = "Your answer was correct, but your confidence was low."
-    else:
-        summary = "ADAPT used this response to update what it knows about your understanding."
     return {
         "title": "What ADAPT noticed",
         "bullets": bullets,
-        "summary": summary,
+        "summary": learner["noticed"],
         "mastery_percent": int(round(mastery * 100)),
         "mastery_arrow": {"up": "↑", "down": "↓", "same": "→"}[arrow],
         "strategy": step.decision.value,
@@ -158,13 +162,8 @@ def why_this_question(
             "text": "This is an opening question so ADAPT can see how you approach the topic.",
             "from_trace": True,
         }
-    notes: list[str] = []
-    if step.evidence.reasoning_quality == ReasoningQuality.WEAK:
-        notes.append("weak_reasoning")
-    if step.evidence.confidence_signal.value == "LOW":
-        notes.append("low_confidence")
     reasons = tuple((selection or {}).get("reasons") or [])
-    text = learner_why(step.decision, reasons, evidence_notes=tuple(notes))
+    text = why_from_strategy(step)
     explain = human_trace_explanation(step)
     return {
         "title": "Why this question?",
@@ -204,36 +203,9 @@ def engine_diff(challenge) -> int:
 
 
 def session_journey(session: TutorSession) -> dict[str, Any]:
-    steps = []
-    opening = session.traces[0].strategy_before.current_strategy.value if session.traces else session.strategy_state.current_strategy.value
-    steps.append(
-        {
-            "id": "start",
-            "step": 0,
-            "strategy": opening,
-            "label": opening,
-            "kind": "start",
-        }
-    )
-    for step in session.traces:
-        explain = human_trace_explanation(step)
-        steps.append(
-            {
-                "id": f"step-{step.step_number}",
-                "step": step.step_number,
-                "strategy": step.decision.value,
-                "label": step.decision.value,
-                "kind": "decision",
-                "changed": step.strategy_before.current_strategy != step.strategy_after.current_strategy,
-                "evidence": explain["evidence"],
-                "state": explain["state"],
-                "strategy_text": explain["strategy"],
-                "challenge_id": step.challenge_id,
-                "next_challenge_id": step.next_challenge_id,
-                "prompt": step.challenge.question,
-            }
-        )
-    return {"title": "Your learning journey", "steps": steps}
+    from adapt.product.journey import session_journey as build_journey
+
+    return build_journey(session)
 
 
 def session_insights(session: TutorSession) -> dict[str, Any]:
@@ -295,53 +267,16 @@ def learner_progress_view(
     *,
     concept_mastery: dict[str, float],
     subject_id: str | None = None,
+    activity: dict[str, dict[str, Any]] | None = None,
+    session_completed: int = 0,
+    session_concepts: list[str] | None = None,
 ) -> dict[str, Any]:
-    subjects = []
-    overall_values: list[float] = []
-    for subject in CATALOG.subjects:
-        concepts = CATALOG.concepts_for_subject(subject.subject_id)
-        values = [concept_mastery[item.concept_id] for item in concepts if item.concept_id in concept_mastery]
-        percent = int(round(sum(values) / len(values) * 100)) if values else None
-        if values:
-            overall_values.extend(values)
-        topics = []
-        for topic in CATALOG.topics_for_subject(subject.subject_id):
-            tvals = [
-                concept_mastery[cid]
-                for cid in topic.concept_ids
-                if cid in concept_mastery
-            ]
-            topics.append(
-                topic.to_dict(
-                    mastery=sum(tvals) / len(tvals) if tvals else None,
-                    challenge_count=len(CATALOG.challenges_for_topic(topic.topic_id)),
-                )
-            )
-        subjects.append(
-            {
-                **subject.to_dict(concept_count=len(concepts), topic_count=len(subject.topic_ids)),
-                "mastery": None if percent is None else round(percent / 100, 4),
-                "mastery_percent": percent,
-                "topics": topics,
-            }
-        )
-    overall = int(round(sum(overall_values) / len(overall_values) * 100)) if overall_values else None
-    concept_map = []
-    focus = subject_id
-    if focus:
-        for concept in CATALOG.concepts_for_subject(focus):
-            value = concept_mastery.get(concept.concept_id)
-            concept_map.append(
-                {
-                    **concept.to_dict(mastery=value),
-                    "mastery_percent": None if value is None else int(round(value * 100)),
-                }
-            )
-    return {
-        "title": "Your progress",
-        "overall_percent": overall,
-        "overall_available": overall is not None,
-        "subjects": subjects,
-        "concept_map": concept_map,
-        "disclaimer": "Progress is computed from recorded learner state, not a claim that ADAPT improves learning.",
-    }
+    from adapt.product.progress import learner_progress_view as build_progress
+
+    return build_progress(
+        concept_mastery=concept_mastery,
+        activity=activity,
+        subject_id=subject_id,
+        session_completed=session_completed,
+        session_concepts=session_concepts,
+    )
