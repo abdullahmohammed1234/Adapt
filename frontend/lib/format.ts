@@ -1,9 +1,14 @@
-import { LEARNER_STRATEGY } from "@/lib/constants";
+import { ADAPTATION_GESTURE, LEARNER_STRATEGY } from "@/lib/constants";
 import type { SessionView, StepResult, StrategyName } from "@/lib/types";
 
 export function strategyPlain(value: StrategyName | undefined): string {
   if (!value) return "Let's continue.";
   return LEARNER_STRATEGY[value] || "Let's continue.";
+}
+
+export function adaptationGesture(value: StrategyName | undefined): { symbol: string; label: string } {
+  if (!value) return { symbol: "→", label: "Continuing" };
+  return ADAPTATION_GESTURE[value] || { symbol: "→", label: strategyPlain(value) };
 }
 
 export function isRemediationRepeat(result: StepResult | undefined): boolean {

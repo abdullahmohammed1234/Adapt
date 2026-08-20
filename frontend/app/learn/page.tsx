@@ -2,6 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, Suspense, useEffect, useMemo, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { Button } from "@/components/Button";
 import { ErrorState } from "@/components/ErrorState";
 import { LoadingState } from "@/components/LoadingState";
@@ -13,9 +14,11 @@ import { AnswerInput } from "@/features/learning/AnswerInput";
 import { ApproachSelector } from "@/features/learning/ApproachSelector";
 import { ChallengeCard } from "@/features/learning/ChallengeCard";
 import { ConfidenceSelector } from "@/features/learning/ConfidenceSelector";
+import { NextChallengePreview } from "@/features/learning/NextChallengePreview";
 import { SessionProgress } from "@/features/learning/SessionProgress";
 import { ResearchTrace } from "@/features/research/ResearchTrace";
 import { useResearchMode } from "@/hooks/useResearchMode";
+import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { api, AdaptApiError } from "@/lib/api";
 import { MAX_ANSWER_LENGTH } from "@/lib/constants";
 import { errorMessage, isRemediationRepeat } from "@/lib/format";
@@ -26,6 +29,7 @@ function LearnExperience() {
   const router = useRouter();
   const sessionId = params.get("session") || "";
   const { enabled: research } = useResearchMode();
+  const reduced = useReducedMotion();
   const [session, setSession] = useState<SessionView | null>(null);
   const [trace, setTrace] = useState<TraceView | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -48,7 +52,13 @@ function LearnExperience() {
         setSession(view);
         setPhase(view.result ? "feedback" : "challenge");
       })
-      .catch((err) => setError(errorMessage(err)));
+      .catch((err) =>
+        setError(
+          /expir|not found/i.test(errorMessage(err))
+            ? "This session is no longer available. Start a new one from a subject."
+            : errorMessage(err),
+        ),
+      );
   }, [sessionId]);
 
   useEffect(() => {
@@ -104,7 +114,7 @@ function LearnExperience() {
       if (code === "session_complete") {
         setError("This session is complete.");
       } else {
-        setError(errorMessage(err));
+        setError("ADAPT couldn't load your next challenge. Try again.");
       }
     } finally {
       setSubmitting(false);
@@ -118,7 +128,7 @@ function LearnExperience() {
       return;
     }
     setPhase("challenge");
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.scrollTo({ top: 0, behavior: reduced ? "auto" : "smooth" });
   }
 
   if (error && !session) {
@@ -153,66 +163,90 @@ function LearnExperience() {
         </div>
       ) : null}
 
-      {phase === "feedback" && result ? (
-        <div className="mt-8 grid gap-5" data-screen="feedback">
-          {revisit ? (
-            <p className="rounded-2xl bg-accent-soft px-4 py-3 text-sm font-semibold text-accent">
-              {"Let's revisit this idea."}
-            </p>
-          ) : null}
-          <FeedbackCard result={result} />
-          <EvidenceSummary noticed={result.noticed} />
-          <AdaptationMoment result={result} />
-          <WhyThisQuestion why={result.why_this_question} />
-          <Button onClick={continueSession}>{session.complete ? "See this session" : "Continue"}</Button>
-        </div>
-      ) : session.challenge && !session.challenge.unavailable ? (
-        <form className="mt-8 grid gap-6" onSubmit={onSubmit} data-screen="challenge">
-          {whyOpening ? <p className="text-sm text-muted">{whyOpening}</p> : null}
-          <ChallengeCard session={session} />
-          <AnswerInput challenge={session.challenge} value={answer} onChange={setAnswer} />
-          <ConfidenceSelector value={confidence} onChange={setConfidence} />
-          <ApproachSelector
-            value={approach}
-            onChange={setApproach}
-            options={session.evidence_plan?.approach_options}
-          />
-          <div>
-            <button
-              type="button"
-              className="text-sm font-semibold text-accent"
-              onClick={() => setShowExplain((value) => !value)}
-            >
-              Want to explain?
-            </button>
-            {showExplain ? (
-              <label className="mt-3 block">
-                <span className="sr-only">Optional explanation</span>
-                <textarea
-                  value={explanation}
-                  onChange={(event) => setExplanation(event.target.value)}
-                  maxLength={MAX_ANSWER_LENGTH}
-                  rows={3}
-                  className="w-full rounded-2xl border border-line bg-paper px-4 py-3"
-                  placeholder="A short note is optional."
-                />
-              </label>
+      <AnimatePresence mode="wait">
+        {phase === "feedback" && result ? (
+          <motion.div
+            key="feedback"
+            initial={reduced ? false : { opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={reduced ? undefined : { opacity: 0, y: -8 }}
+            className="mt-8 grid gap-5"
+            data-screen="feedback"
+          >
+            {revisit ? (
+              <p
+                className="rounded-2xl bg-accent-soft px-4 py-3 text-sm font-semibold text-accent"
+                data-revisit="Let's revisit this idea."
+              >
+                {"Let's try this idea from another angle."}
+              </p>
             ) : null}
+            <FeedbackCard result={result} />
+            <EvidenceSummary noticed={result.noticed} />
+            <AdaptationMoment result={result} />
+            <WhyThisQuestion why={result.why_this_question} />
+            <NextChallengePreview
+              challenge={session.challenge}
+              complete={session.complete || !session.challenge}
+              onContinue={continueSession}
+            />
+          </motion.div>
+        ) : session.challenge && !session.challenge.unavailable ? (
+          <motion.form
+            key="challenge"
+            initial={reduced ? false : { opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={reduced ? undefined : { opacity: 0, y: -8 }}
+            className="mt-8 grid gap-6"
+            onSubmit={onSubmit}
+            data-screen="challenge"
+          >
+            {whyOpening ? <p className="text-sm text-muted">{whyOpening}</p> : null}
+            <ChallengeCard session={session} />
+            <AnswerInput challenge={session.challenge} value={answer} onChange={setAnswer} />
+            <ConfidenceSelector value={confidence} onChange={setConfidence} />
+            <ApproachSelector
+              value={approach}
+              onChange={setApproach}
+              options={session.evidence_plan?.approach_options}
+            />
+            <div>
+              <button
+                type="button"
+                className="text-sm font-semibold text-accent"
+                onClick={() => setShowExplain((value) => !value)}
+              >
+                Want to explain? Optional
+              </button>
+              {showExplain ? (
+                <label className="mt-3 block">
+                  <span className="sr-only">Optional explanation</span>
+                  <textarea
+                    value={explanation}
+                    onChange={(event) => setExplanation(event.target.value)}
+                    maxLength={MAX_ANSWER_LENGTH}
+                    rows={3}
+                    className="w-full rounded-[var(--radius)] border border-line bg-paper px-4 py-3"
+                    placeholder="A short note is optional."
+                  />
+                </label>
+              ) : null}
+            </div>
+            <Button type="submit" disabled={submitting}>
+              {submitting ? "Checking…" : "Continue"}
+            </Button>
+          </motion.form>
+        ) : (
+          <div className="mt-8" key="unavailable">
+            <ErrorState
+              title="Challenge unavailable"
+              message="ADAPT couldn't load your next challenge. Try again."
+              actionLabel="Choose another concept"
+              onRetry={() => router.push("/subjects")}
+            />
           </div>
-          <Button type="submit" disabled={submitting}>
-            {submitting ? "Checking…" : "Continue"}
-          </Button>
-        </form>
-      ) : (
-        <div className="mt-8">
-          <ErrorState
-            title="Challenge unavailable"
-            message="A challenge isn’t available right now."
-            actionLabel="Choose another concept"
-            onRetry={() => router.push("/subjects")}
-          />
-        </div>
-      )}
+        )}
+      </AnimatePresence>
 
       {research && trace ? (
         <div className="mt-10">

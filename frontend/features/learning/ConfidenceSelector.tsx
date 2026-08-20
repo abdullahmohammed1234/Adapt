@@ -18,7 +18,7 @@ export function ConfidenceSelector({
           return (
             <label
               key={item.id}
-              className={`cursor-pointer rounded-2xl border px-4 py-3 transition ${
+              className={`cursor-pointer rounded-[var(--radius)] border px-4 py-4 text-center transition ${
                 selected
                   ? "border-[#0f6b57] bg-[#d7efe6] text-[#0f6b57]"
                   : "border-[#e4dfd4] bg-[#fffcf7] text-[#161513] hover:border-[#0f6b57]/40"
@@ -33,7 +33,10 @@ export function ConfidenceSelector({
                 className="sr-only"
                 required
               />
-              <span className="block font-semibold">{item.label}</span>
+              <span aria-hidden="true" className="block text-2xl">
+                {item.emoji}
+              </span>
+              <span className="mt-2 block font-semibold">{item.label}</span>
               <span className="mt-1 block text-xs text-muted">{item.hint}</span>
             </label>
           );

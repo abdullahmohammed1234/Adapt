@@ -16,7 +16,14 @@ export function SessionProgress({
           {current} / {total}
         </span>
       </div>
-      <div className="h-2 overflow-hidden rounded-full bg-line" aria-hidden="true">
+      <div
+        className="h-1.5 overflow-hidden rounded-full bg-line"
+        role="progressbar"
+        aria-valuemin={0}
+        aria-valuemax={total}
+        aria-valuenow={current}
+        aria-label="Session progress"
+      >
         <div className="h-full rounded-full bg-accent transition-all" style={{ width: `${percent}%` }} />
       </div>
     </div>

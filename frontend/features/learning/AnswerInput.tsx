@@ -22,10 +22,10 @@ export function AnswerInput({
             return (
               <label
                 key={choice}
-                className={`cursor-pointer rounded-2xl border px-4 py-3 ${
+                className={`cursor-pointer rounded-[var(--radius)] border px-4 py-3 transition ${
                   selected
                     ? "border-[#0f6b57] bg-[#d7efe6] text-[#161513]"
-                    : "border-[#e4dfd4] bg-[#fffcf7] text-[#161513]"
+                    : "border-[#e4dfd4] bg-[#fffcf7] text-[#161513] hover:border-[#0f6b57]/40"
                 }`}
               >
                 <input
@@ -56,7 +56,7 @@ export function AnswerInput({
         required
         autoComplete="off"
         maxLength={20000}
-        className="w-full rounded-2xl border border-line bg-paper px-4 py-3"
+        className="w-full rounded-[var(--radius)] border border-line bg-paper px-4 py-3"
       />
     </label>
   );

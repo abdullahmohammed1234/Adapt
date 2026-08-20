@@ -1,4 +1,10 @@
-export function Badge({ children, tone = "neutral" }: { children: React.ReactNode; tone?: "neutral" | "success" | "retry" | "accent" }) {
+export function Badge({
+  children,
+  tone = "neutral",
+}: {
+  children: React.ReactNode;
+  tone?: "neutral" | "success" | "retry" | "accent";
+}) {
   const tones = {
     neutral: "bg-canvas text-muted",
     success: "bg-success-soft text-success",

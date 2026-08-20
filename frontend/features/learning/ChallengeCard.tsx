@@ -9,22 +9,17 @@ export function ChallengeCard({ session }: { session: SessionView }) {
   const prompt = challengePrompt(session);
   const codeLike = Boolean(session.presentation?.code_like);
   return (
-    <section className="rounded-[var(--radius-card)] border border-line bg-paper p-6 sm:p-8">
+    <section className="surface px-6 py-7 sm:px-8 sm:py-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="kicker">{session.topic?.name}</p>
+        <p className="kicker">{session.opening.concept || session.topic?.name}</p>
         <Badge>{challenge.challenge_type.replaceAll("_", " ")}</Badge>
       </div>
-      <p className="mt-3 text-sm text-muted">
-        Question {session.progress.current} / {session.progress.total}
-      </p>
       {session.subject_id ? (
-        <div className="mt-4 h-16 max-w-xs opacity-80">
+        <div className="mt-4 h-10 max-w-[9rem] opacity-70">
           <DomainMotif subjectId={session.subject_id} className="h-full w-full" />
         </div>
       ) : null}
-      <h2 className={`mt-4 font-display text-3xl leading-snug sm:text-4xl ${codeLike ? "font-sans text-2xl" : ""}`}>
-        {prompt}
-      </h2>
+      <h2 className={`title-question mt-4 ${codeLike ? "font-sans !text-2xl tracking-normal" : ""}`}>{prompt}</h2>
     </section>
   );
 }
