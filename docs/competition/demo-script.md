@@ -4,52 +4,70 @@ Deterministic. Uses `AdaptiveTutor`. No API key.
 
 ```bash
 python -m app
+cd frontend
+npm run dev
 ```
+
+Open [http://127.0.0.1:3000](http://127.0.0.1:3000). The Python server on port 8765 is the API. Next.js proxies `/api` to it.
 
 Optional CLI: `python demo/run_competition_demo.py` or `python demo/run_phase9_demo.py`.
 
-Label on screen: **DEMO SCENARIO** when using the guided demo. These are demonstrations of system behavior, not human study results.
+These are demonstrations of system behavior, not human study results.
+
+Central sentence:
+
+> ADAPT doesn't just look at whether the answer was right. It looks at the evidence behind the answer and changes what comes next.
 
 ## 0:00–0:20 — Landing
 
 Show:
 
-- “Learn differently with ADAPT.”
-- “An adaptive tutor that changes what you learn next based on how you learn.”
-- Start Learning / See How ADAPT Works
+- **ADAPT**
+- **Learn differently.**
+- “ADAPT changes what you learn next based on how you respond — not just whether you're right.”
+- Start learning / See how ADAPT adapts
+- Answer → ADAPT notices → ADAPT adapts → Your next challenge changes
 
-Say: ADAPT changes what you learn next based on how you answer — not only whether you are right.
+Say: ADAPT doesn't just look at whether the answer was right. It looks at the evidence behind the answer and changes what comes next.
 
-## 0:20–1:00 — Learn something
+## 0:20–0:45 — Choose
 
-Click **Start Learning**. Choose Quantum or another subject. Open a concept. Answer with a short choice or number, tap confidence (Not sure / Somewhat / Very confident), and optionally how you approached it. Long typing is optional.
+Click **Start learning**. Show the seven subjects. Open **Quantum** (or Mathematics). Choose a concept.
 
-Show concise feedback: Result, What ADAPT noticed, Why this question?, then the adaptation moment (Your response → ADAPT noticed → Your next step).
+## 0:45–1:20 — Answer
 
-Do not invent the strategy. Read what the product shows from the engine.
+Answer the challenge. Tap **Guessing / Unsure / Confident**. Optionally tap an approach chip. Long typing is optional.
 
-## 1:00–1:30 — Adaptive visibility
+Click **Continue**.
 
-Stay on the feedback screen.
+## 1:20–1:50 — ADAPT noticed
+
+Stay on feedback.
 
 Walk:
 
-1. What ADAPT noticed
-2. What ADAPT thinks
-3. What ADAPT is doing
-4. What’s next
+1. Concise result
+2. What ADAPT noticed
+3. The adaptation moment (Your response → ADAPT notices → ADAPT decides)
+4. Why this question?
 
-## 1:30–2:00 — Research Mode
+Do not invent the strategy. Read what the product shows from the engine.
 
-Open **Research mode**.
+## 1:50–2:10 — Second challenge
+
+Continue. Show that the next question changed. If ADAPT revisits an idea, say: “That's intentional — let's revisit this idea.”
+
+## 2:10–2:30 — Research Mode
+
+Turn on **Research Mode** in the header, or open `/research`.
 
 Walk the real trace:
 
 Evidence → Learner State → Strategy → Next Challenge
 
-## 2:00–2:30 — Counterfactual
+## 2:30–3:00 — Counterfactual
 
-How ADAPT Works → Counterfactual.
+Open **Counterfactual**.
 
 Same start. Different evidence.
 
@@ -58,12 +76,8 @@ Same start. Different evidence.
 
 Say: “Same starting point. Different evidence. Different decision.”
 
-## 2:30–3:00 — Breadth
-
-Return to Learn. Show the seven subjects: Mathematics, Calculus, Computer Science, Physics, Chemistry, Space, Quantum.
-
 Final line:
 
-“ADAPT doesn't just ask whether you're right. It learns from how you answer and changes what happens next.”
+“ADAPT doesn't just look at whether the answer was right. It looks at the evidence behind the answer and changes what comes next.”
 
 If asked about learning improvement: Phase 5 is INCONCLUSIVE, n = 0.
