@@ -10,7 +10,7 @@ npm run dev
 
 Open [http://127.0.0.1:3000](http://127.0.0.1:3000). The Python server on port 8765 is the API. Next.js proxies `/api` to it.
 
-Optional CLI: `python demo/run_competition_demo.py` or `python demo/run_phase9_demo.py`.
+Optional CLI: `python demo/run_competition_demo.py`, `python demo/run_phase9_demo.py`, or `python demo/run_phase11_demo.py`.
 
 These are demonstrations of system behavior, not human study results.
 
@@ -24,9 +24,9 @@ Show:
 
 - **ADAPT**
 - **Learn differently.**
-- “ADAPT changes what you learn next based on how you respond — not just whether you're right.”
+- “An AI tutor that adapts to how you learn, not just whether you are right.”
 - Start learning / See how ADAPT adapts
-- Answer → ADAPT notices → ADAPT adapts → Your next challenge changes
+- Answer → ADAPT notices → ADAPT adapts
 
 Say: ADAPT doesn't just look at whether the answer was right. It looks at the evidence behind the answer and changes what comes next.
 
@@ -48,14 +48,15 @@ Walk:
 
 1. Concise result
 2. What ADAPT noticed
-3. The adaptation moment (Your response → ADAPT notices → ADAPT decides)
+3. The adaptation moment (**ADAPT ADAPTED**, then the trace-backed next move)
 4. Why this question?
+5. Here’s what’s next
 
 Do not invent the strategy. Read what the product shows from the engine.
 
 ## 1:50–2:10 — Second challenge
 
-Continue. Show that the next question changed. If ADAPT revisits an idea, say: “That's intentional — let's revisit this idea.”
+Continue. Show that the next question changed. If ADAPT revisits an idea, say: “That's intentional — let's try this idea from another angle.”
 
 ## 2:10–2:30 — Research Mode
 

@@ -5,10 +5,12 @@ import { useSearchParams } from "next/navigation";
 import { ErrorState } from "@/components/ErrorState";
 import { LoadingState } from "@/components/LoadingState";
 import { EmptyState } from "@/components/EmptyState";
+import { PageShell } from "@/components/PageShell";
 import { InsightsList } from "@/features/progress/InsightsList";
-import { ProgressPath } from "@/features/progress/ProgressPath";
+import { JourneyRail, ProgressPath } from "@/features/progress/ProgressPath";
 import { ResearchTrace } from "@/features/research/ResearchTrace";
 import { api } from "@/lib/api";
+import { PRODUCT } from "@/lib/constants";
 import { errorMessage } from "@/lib/format";
 import { getLearnerId } from "@/lib/learner";
 import type { InsightsView, JourneyStage, JourneyView, ProgressView, TraceView } from "@/lib/types";
@@ -63,24 +65,47 @@ function ProgressExperience() {
   }
 
   const stages = (journey?.stages || []) as JourneyStage[];
+  const motif = PRODUCT.journey.map((name) => ({
+    id: name.toLowerCase(),
+    name,
+  }));
 
   return (
     <div className="grid gap-8">
-      <section className="rounded-[var(--radius-card)] border border-line bg-paper p-6">
+      <section className="surface p-6">
         <p className="kicker">Progress this session</p>
         <h2 className="mt-2 font-display text-3xl">
           {progress.concepts_practiced} concept{progress.concepts_practiced === 1 ? "" : "s"} explored
         </h2>
         <p className="mt-3 text-sm text-muted">{progress.disclaimer}</p>
+        <dl className="mt-6 grid gap-4 sm:grid-cols-3">
+          <div>
+            <dt className="text-xs font-semibold uppercase tracking-[0.14em] text-muted">Concepts explored</dt>
+            <dd className="mt-1 text-2xl font-semibold">{progress.concepts_practiced}</dd>
+          </div>
+          <div>
+            <dt className="text-xs font-semibold uppercase tracking-[0.14em] text-muted">Challenges this visit</dt>
+            <dd className="mt-1 text-2xl font-semibold">{progress.challenges_completed || progress.session_completed}</dd>
+          </div>
+          <div>
+            <dt className="text-xs font-semibold uppercase tracking-[0.14em] text-muted">Current focus</dt>
+            <dd className="mt-1 text-lg font-semibold">
+              {progress.session_concepts?.[0] || progress.areas_improving?.[0]?.name || "This session"}
+            </dd>
+          </div>
+        </dl>
       </section>
-      {stages.length ? (
-        <section className="rounded-[var(--radius-card)] border border-line bg-paper p-6">
-          <p className="kicker">Current journey</p>
-          <div className="mt-4">
+      <section className="surface p-6">
+        <p className="kicker">Learning journey</p>
+        <div className="mt-5">
+          <JourneyRail stages={stages.length ? stages : motif} />
+        </div>
+        {stages.length ? (
+          <div className="mt-6">
             <ProgressPath stages={stages} />
           </div>
-        </section>
-      ) : null}
+        ) : null}
+      </section>
       {insights ? (
         <section>
           <p className="kicker">ADAPT noticed</p>
@@ -96,8 +121,8 @@ function ProgressExperience() {
 
 export default function ProgressPage() {
   return (
-    <main id="main" className="mx-auto max-w-4xl px-4 py-12 sm:px-6">
-      <h1 className="font-display text-5xl">Progress this session</h1>
+    <PageShell>
+      <h1 className="title-page">Progress this session</h1>
       <p className="mt-4 max-w-2xl text-muted">
         This is visit memory while the server is running. It is not lifetime learning progress.
       </p>
@@ -106,6 +131,6 @@ export default function ProgressPage() {
           <ProgressExperience />
         </Suspense>
       </div>
-    </main>
+    </PageShell>
   );
 }

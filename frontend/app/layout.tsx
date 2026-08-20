@@ -20,8 +20,7 @@ const display = Instrument_Serif({
 
 export const metadata: Metadata = {
   title: "ADAPT — Learn differently",
-  description:
-    "ADAPT changes what you learn next based on how you respond — not just whether you're right.",
+  description: "An AI tutor that adapts to how you learn, not just whether you are right.",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
@@ -29,12 +28,14 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html lang="en">
       <body className={`${sans.variable} ${display.variable} antialiased text-ink`}>
         <AppProviders>
-          <a className="skip-link" href="#main">
-            Skip to content
-          </a>
-          <SiteHeader />
-          {children}
-          <SiteFooter />
+          <div className="app-shell">
+            <a className="skip-link" href="#main">
+              Skip to content
+            </a>
+            <SiteHeader />
+            <div className="app-main">{children}</div>
+            <SiteFooter />
+          </div>
         </AppProviders>
       </body>
     </html>

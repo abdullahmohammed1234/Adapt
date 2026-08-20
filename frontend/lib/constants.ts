@@ -3,20 +3,21 @@ import type { SubjectId } from "@/lib/types";
 export const PRODUCT = {
   name: "ADAPT",
   headline: "Learn differently.",
-  supporting:
-    "ADAPT changes what you learn next based on how you respond — not just whether you're right.",
+  supporting: "An AI tutor that adapts to how you learn, not just whether you are right.",
   ctaPrimary: "Start learning",
   ctaSecondary: "See how ADAPT adapts",
   loop: ["Answer", "ADAPT notices", "ADAPT adapts", "Your next challenge changes"] as const,
+  landingLoop: ["Answer", "ADAPT notices", "ADAPT adapts"] as const,
   researchLoop: ["Evidence", "Learner State", "Strategy", "Challenge Selection"] as const,
+  journey: ["Start", "Explore", "Practice", "ADAPT", "Improve"] as const,
   promise:
     "ADAPT demonstrates evidence-sensitive adaptive tutoring behavior. It has not been proven to improve learning.",
 } as const;
 
 export const CONFIDENCE_CHOICES = [
-  { value: 1, id: "guessing", label: "Guessing", hint: "I am not sure this is right." },
-  { value: 3, id: "unsure", label: "Unsure", hint: "I have a sense of it, but not fully." },
-  { value: 5, id: "confident", label: "Confident", hint: "I believe I understand this." },
+  { value: 1, id: "guessing", label: "Guessing", emoji: "😕", hint: "I am not sure this is right." },
+  { value: 3, id: "unsure", label: "Unsure", emoji: "🙂", hint: "I have a sense of it, but not fully." },
+  { value: 5, id: "confident", label: "Confident", emoji: "💡", hint: "I believe I understand this." },
 ] as const;
 
 export const APPROACH_CHOICES = [
@@ -94,6 +95,17 @@ export const LEARNER_STRATEGY: Record<string, string> = {
   REMEDIATE: "Let's revisit this idea.",
   RECOVER: "We can move forward from here.",
   GATHER_EVIDENCE: "ADAPT needs a little more evidence.",
+};
+
+export const ADAPTATION_GESTURE: Record<string, { symbol: string; label: string }> = {
+  INCREASE: { symbol: "↑", label: "Increasing difficulty" },
+  DECREASE: { symbol: "↓", label: "Simplifying this idea" },
+  PROBE: { symbol: "→", label: "Probing your understanding" },
+  REMEDIATE: { symbol: "↻", label: "Revisiting the concept" },
+  MAINTAIN: { symbol: "→", label: "Staying at this level" },
+  ASSESS: { symbol: "→", label: "Seeing how you approach this" },
+  RECOVER: { symbol: "→", label: "Moving forward" },
+  GATHER_EVIDENCE: { symbol: "→", label: "Gathering more evidence" },
 };
 
 export const MAX_ANSWER_LENGTH = 20000;

@@ -18,20 +18,22 @@ export function SiteHeader() {
   const { enabled, setEnabled } = useResearchMode();
   const [open, setOpen] = useState(false);
   const dark = pathname === "/";
+  const compact = pathname.startsWith("/learn");
 
   return (
     <header
       className={`sticky top-0 z-20 border-b ${
-        dark ? "border-white/10 bg-[#10131a]/90 text-deep-ink" : "border-line bg-paper/90 text-ink"
+        dark ? "border-white/10 bg-[#0c1110]/90 text-deep-ink" : "border-line bg-paper/90 text-ink"
       } backdrop-blur-md`}
     >
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
         <ADAPTLogo light={dark} />
         <button
           type="button"
-          className="rounded-full border border-current/20 px-3 py-1 text-sm md:hidden"
+          className="rounded-full border border-current/25 px-3 py-1 text-sm font-semibold md:hidden"
           aria-expanded={open}
           aria-controls="site-nav"
+          aria-label={open ? "Close menu" : "Open menu"}
           onClick={() => setOpen((value) => !value)}
         >
           Menu
@@ -40,7 +42,7 @@ export function SiteHeader() {
           id="site-nav"
           className={`${open ? "flex" : "hidden"} absolute left-0 right-0 top-full flex-col gap-3 border-b border-current/10 bg-inherit px-4 py-4 md:static md:flex md:flex-row md:items-center md:gap-5 md:border-0 md:bg-transparent md:p-0`}
         >
-          {LINKS.map((link) => {
+          {(compact ? LINKS.slice(0, 1) : LINKS).map((link) => {
             const current = pathname === link.href || pathname.startsWith(`${link.href}/`);
             return (
               <Link
@@ -68,6 +70,7 @@ export function SiteHeader() {
               type="checkbox"
               checked={enabled}
               onChange={(event) => setEnabled(event.target.checked)}
+              aria-label="Research Mode"
             />
             Research Mode
           </label>

@@ -1,20 +1,21 @@
-import { AdaptationFlow } from "@/features/adaptation/AdaptationFlow";
+import { AdaptJourney, AdaptationFlow } from "@/features/adaptation/AdaptationFlow";
 import { Button } from "@/components/Button";
+import { PageShell } from "@/components/PageShell";
 import { PRODUCT } from "@/lib/constants";
 
 export default function HowItWorksPage() {
   return (
-    <main id="main" className="mx-auto max-w-4xl px-4 py-12 sm:px-6">
+    <PageShell>
       <p className="kicker">How ADAPT adapts</p>
-      <h1 className="mt-3 font-display text-5xl">See how ADAPT adapts</h1>
+      <h1 className="title-page mt-3">See how ADAPT adapts</h1>
       <p className="mt-4 max-w-2xl text-lg text-muted">{PRODUCT.supporting}</p>
-      <section className="mt-10 rounded-[var(--radius-card)] bg-deep p-8 text-deep-ink">
+      <section className="mt-10 rounded-[var(--radius-lg)] bg-deep p-8 text-deep-ink">
         <p className="kicker text-white/60">The learner experience</p>
         <div className="mt-6">
-          <AdaptationFlow />
+          <AdaptJourney />
         </div>
       </section>
-      <section className="mt-8 rounded-[var(--radius-card)] border border-line bg-paper p-8">
+      <section className="mt-8 surface p-8">
         <p className="kicker">The technical chain</p>
         <p className="mt-3 text-muted">Research Mode exposes the engine chain. Ordinary learners do not need it.</p>
         <div className="mt-6">
@@ -31,6 +32,6 @@ export default function HowItWorksPage() {
           Same question. Different learner.
         </Button>
       </div>
-    </main>
+    </PageShell>
   );
 }

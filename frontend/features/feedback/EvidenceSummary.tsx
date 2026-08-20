@@ -2,14 +2,18 @@ import type { NoticedView } from "@/lib/types";
 
 export function EvidenceSummary({ noticed }: { noticed: NoticedView }) {
   return (
-    <section className="rounded-[var(--radius-card)] border border-line bg-paper p-6">
-      <p className="kicker">{noticed.title}</p>
+    <section className="surface px-6 py-6" data-screen="noticed">
+      <p className="kicker">What ADAPT noticed</p>
       <h3 className="mt-2 font-display text-2xl">{noticed.headline}</h3>
       <p className="mt-2 text-muted">{noticed.body || noticed.summary}</p>
-      <ul className="mt-4 grid gap-2 sm:grid-cols-2">
+      <ul className="mt-4 flex flex-wrap gap-2">
         {noticed.bullets.map((item) => (
-          <li key={item.text} className="rounded-xl bg-canvas px-3 py-2 text-sm">
-            <span aria-hidden="true">{item.ok ? "•" : "•"} </span>
+          <li
+            key={item.text}
+            className={`rounded-full px-3 py-1.5 text-sm ${
+              item.ok ? "bg-accent-soft text-accent" : "bg-canvas text-muted"
+            }`}
+          >
             {item.text}
           </li>
         ))}

@@ -20,7 +20,7 @@ export function ApproachSelector({
     : APPROACH_CHOICES;
   return (
     <fieldset>
-      <legend className="mb-3 font-semibold">How did you approach this?</legend>
+      <legend className="mb-3 font-semibold">How did you approach it?</legend>
       <p className="mb-3 text-sm text-muted">Optional — this helps ADAPT understand your thinking.</p>
       <div className="flex flex-wrap gap-2">
         {items.map((item) => {

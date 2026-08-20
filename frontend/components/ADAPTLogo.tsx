@@ -4,7 +4,7 @@ export function ADAPTLogo({ light = false }: { light?: boolean }) {
   return (
     <Link
       href="/"
-      className={`inline-flex items-center gap-2 no-underline ${light ? "text-deep-ink" : "text-ink"}`}
+      className={`inline-flex items-center gap-2.5 no-underline ${light ? "text-deep-ink" : "text-ink"}`}
       aria-label="ADAPT home"
     >
       <span
