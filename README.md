@@ -39,15 +39,33 @@ The product UI does not invent these decisions. It submits `answer`, `confidence
 
 Offline-first. No API key. No external LLM.
 
+Phase 10 frontend (Next.js) plus the existing Python API:
+
 ```bash
 python -m app
 ```
 
-Open [http://127.0.0.1:8765](http://127.0.0.1:8765).
+In a second terminal:
 
-- **Try ADAPT** — choose a subject (Mathematics, Calculus, Computer Science, Physics, Chemistry, Space, Quantum) and start a session.
-- **How ADAPT Works** — the adaptive chain, technical evidence, and known limits.
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open [http://127.0.0.1:3000](http://127.0.0.1:3000). Next.js proxies `/api` to the Python server at [http://127.0.0.1:8765](http://127.0.0.1:8765).
+
+Or:
+
+```bash
+python scripts/run_phase10.py
+```
+
+- **Start learning** — choose a subject (Mathematics, Calculus, Computer Science, Physics, Chemistry, Space, Quantum) and start a session.
+- **See how ADAPT adapts** — the learner chain and the technical evidence chain.
 - **Counterfactual** — same starting point, different evidence, different decision.
+
+The Python server still serves the Phase 9 static UI at port 8765. The Phase 10 product experience is the Next.js app.
 
 CLI reproduction of the guided demo:
 
@@ -94,6 +112,7 @@ These are engineering benchmarks of adaptive decision behavior. They are **not**
 | 7 | 7 domains; 50 concepts; 14 challenge types; repetition and counterfactual preserved |
 | 8 | Product UX layer; explanations from traces; engine preserved; usability PENDING (n=0) |
 | 9 | Competitive product polish; lightweight evidence; challenge diversity; expanded catalog; engine preserved |
+| 10 | Next.js/React frontend reconstruction; adaptation-visible UX; engine preserved |
 
 ## Architecture
 
@@ -113,7 +132,7 @@ Challenge Selector
 Next Challenge
 ```
 
-The application boundary is `ProductService` → `AdaptiveTutor`. Historical Phase 1–5 engine logic is frozen. Phase 7 adds a content catalog around that engine. Phase 8 is a learner UX and explanation layer; it does not change adaptive decisions. Phase 9 polishes the product experience around the same frozen engine.
+The application boundary is `ProductService` → `AdaptiveTutor`. Historical Phase 1–5 engine logic is frozen. Phase 7 adds a content catalog around that engine. Phase 8 is a learner UX and explanation layer; it does not change adaptive decisions. Phase 9 polishes the product experience around the same frozen engine. Phase 10 replaces the learner-facing frontend with Next.js; it still only displays engine decisions.
 
 ## Testing
 
@@ -132,7 +151,7 @@ python -m benchmarks.run_no_persist
 - Phase 1F fraction-subtraction boundary (G-001-B).
 - Phase 1F delayed-misconception vs regression boundary (G-003), later addressed in Phase 2 and kept as historical evidence.
 - Phase 5 human participants = 0, so H1 is INCONCLUSIVE.
-- Phase 4 formative usability study is incomplete (0 / 5 PENDING). Phase 8 and Phase 9 usability are also PENDING (0 / 5).
+- Phase 4 formative usability study is incomplete (0 / 5 PENDING). Phase 8, Phase 9, and Phase 10 usability are also PENDING (0 / 5).
 - No claim of educational efficacy.
 - Heuristic, deterministic evidence analysis — not an LLM.
 - Curated multi-domain catalog (not a complete curriculum).
@@ -142,9 +161,10 @@ python -m benchmarks.run_no_persist
 
 ```text
 adapt/
+├── frontend/           # Phase 10 Next.js / React learner product
 ├── src/
 │   ├── adapt/          # engine, product boundary, evaluation
-│   └── app/            # HTTP server and learner UI
+│   └── app/            # HTTP API and Phase 9 static UI
 ├── app/                # `python -m app` launcher
 ├── benchmarks/
 │   ├── phase1e/
@@ -158,7 +178,7 @@ adapt/
 │   └── phase9/
 ├── tests/
 ├── docs/
-│   ├── phase-1/ … phase-9/
+│   ├── phase-1/ … phase-10/
 │   └── competition/
 ├── results/            # historical benchmark artifacts (do not rewrite)
 ├── demo/
