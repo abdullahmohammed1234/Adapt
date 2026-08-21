@@ -182,7 +182,10 @@ function LearnExperience() {
               </p>
             ) : null}
             <FeedbackCard result={result} />
-            <EvidenceSummary noticed={result.noticed} />
+            <EvidenceSummary
+              noticed={result.noticed}
+              sourceLabel={result.evidence_source_label || session.evidence_source_label}
+            />
             <AdaptationMoment result={result} />
             <WhyThisQuestion why={result.why_this_question} />
             <NextChallengePreview

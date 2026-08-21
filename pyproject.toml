@@ -20,6 +20,7 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 app = ["static/**/*"]
+adapt = ["llm/prompts/*.txt"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

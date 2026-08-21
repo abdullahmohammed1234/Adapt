@@ -18,6 +18,12 @@ export default function ResearchPage() {
         <div className="mt-6">
           <AdaptationFlow steps={PRODUCT.researchLoop} compact />
         </div>
+        <p className="mt-6 text-sm text-white/70">
+          When Gemini is enabled, evidence extraction is an LLM workflow sitting in front of the same engine:
+        </p>
+        <div className="mt-4">
+          <AdaptationFlow steps={PRODUCT.geminiLoop} compact />
+        </div>
         <ol className="mt-8 grid gap-3 text-lg">
           {["Evidence", "Learner state", "Strategy", "Decision", "Next challenge", "Trace"].map((item) => (
             <li key={item} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">

@@ -17,9 +17,15 @@ export default function HowItWorksPage() {
       </section>
       <section className="mt-8 surface p-8">
         <p className="kicker">The technical chain</p>
-        <p className="mt-3 text-muted">Research Mode exposes the engine chain. Ordinary learners do not need it.</p>
+        <p className="mt-3 text-muted">
+          Research Mode exposes the engine chain. Ordinary learners do not need it. When Gemini is enabled it
+          interprets learner evidence; AdaptiveTutor still chooses strategy and the next challenge.
+        </p>
         <div className="mt-6">
           <AdaptationFlow steps={PRODUCT.researchLoop} compact />
+        </div>
+        <div className="mt-6">
+          <AdaptationFlow steps={PRODUCT.geminiLoop} compact />
         </div>
       </section>
       <p className="mt-8 text-sm text-muted">

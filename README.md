@@ -28,7 +28,7 @@ Strategy
 Next Challenge
 ```
 
-1. **Evidence Analyzer** extracts signals about understanding, confidence, reasoning, and misconceptions.
+1. **Evidence Analyzer** extracts signals about understanding, confidence, reasoning, and misconceptions. When Gemini is enabled, this step is a validated LLM evidence workflow; otherwise it is the deterministic analyzer.
 2. **Learner State** maintains the system's current belief about the learner.
 3. **Strategy Engine** chooses how the tutor should respond.
 4. **Challenge Selector** turns that strategy into the next task.
@@ -65,7 +65,7 @@ python scripts/run_phase11.py
 - **See how ADAPT adapts** — the learner chain and the technical evidence chain.
 - **Counterfactual** — same starting point, different evidence, different decision.
 
-The Python server still serves the Phase 9 static UI at port 8765. The Phase 11 product experience is the Next.js app.
+The Python server still serves the Phase 9 static UI at port 8765. The Phase 11 product experience is the Next.js app. If `GEMINI_API_KEY` is set, the server enables the Gemini evidence workflow; otherwise it stays fully offline.
 
 CLI reproduction of the guided demo:
 
@@ -120,6 +120,7 @@ These are engineering benchmarks of adaptive decision behavior. They are **not**
 | 9 | Competitive product polish; lightweight evidence; challenge diversity; expanded catalog; engine preserved |
 | 10 | Next.js/React frontend reconstruction; adaptation-visible UX; engine preserved |
 | 11 | Visual product polish; competition-quality learner UI; engine preserved |
+| 12 | Gemini evidence-extraction workflow around the frozen engine; prompt versions compared; holdout vs single-prompt baseline **not statistically significant** (n=30) |
 
 ## Architecture
 
@@ -128,7 +129,11 @@ Learner
    ↓
 Response
    ↓
-Evidence Analyzer
+Gemini evidence workflow (optional)
+   ↓
+Validation
+   ↓
+Evidence Analyzer / validated evidence
    ↓
 Learner State
    ↓
@@ -139,12 +144,24 @@ Challenge Selector
 Next Challenge
 ```
 
-The application boundary is `ProductService` → `AdaptiveTutor`. Historical Phase 1–5 engine logic is frozen. Phase 7 adds a content catalog around that engine. Phase 8 is a learner UX and explanation layer; it does not change adaptive decisions. Phase 9 polishes the product experience around the same frozen engine. Phase 10 replaces the learner-facing frontend with Next.js; it still only displays engine decisions. Phase 11 polishes that frontend visually; it still does not choose strategy or next challenge.
+The application boundary is `ProductService` → `AdaptiveTutor`. Historical Phase 1–5 engine logic is frozen. Phase 12 may inject an LLM evidence analyzer; it does not let Gemini choose strategy or the next challenge. Phase 7 adds a content catalog around that engine. Phase 8 is a learner UX and explanation layer; it does not change adaptive decisions. Phase 9 polishes the product experience around the same frozen engine. Phase 10 replaces the learner-facing frontend with Next.js; it still only displays engine decisions. Phase 11 polishes that frontend visually; it still does not choose strategy or next challenge.
 
 ## Testing
 
 ```bash
 python -m pytest
+```
+
+Live Gemini smoke test (skips if `GEMINI_API_KEY` is unset):
+
+```bash
+python scripts/run_gemini_smoke_test.py
+```
+
+Phase 12 offline benchmark:
+
+```bash
+python -m benchmarks.phase12.runner
 ```
 
 Historical benchmarks without rewriting artifacts:
@@ -160,9 +177,10 @@ python -m benchmarks.run_no_persist
 - Phase 5 human participants = 0, so H1 is INCONCLUSIVE.
 - Phase 4 formative usability study is incomplete (0 / 5 PENDING). Phase 8–11 usability are also PENDING (0 / 5).
 - No claim of educational efficacy.
-- Heuristic, deterministic evidence analysis — not an LLM.
+- Heuristic, deterministic evidence analysis by default — optional Gemini evidence workflow in Phase 12; Gemini does not choose the next challenge.
 - Curated multi-domain catalog (not a complete curriculum).
 - Finite challenge bank; questions are not generated at runtime.
+- Phase 12 offline scores used a prompt-conditioned simulator unless `--live` is requested.
 
 ## Project Structure
 
@@ -182,11 +200,13 @@ adapt/
 │   ├── phase5/
 │   ├── phase7/
 │   ├── phase8/
-│   └── phase9/
+│   ├── phase9/
+│   └── phase12/
 ├── tests/
 ├── docs/
-│   ├── phase-1/ … phase-11/
+│   ├── phase-1/ … phase-12/
 │   └── competition/
+│       └── submission/   # ML workflow diagram, samples, video script
 ├── results/            # historical benchmark artifacts (do not rewrite)
 ├── demo/
 └── README.md

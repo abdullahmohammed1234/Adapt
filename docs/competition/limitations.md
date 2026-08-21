@@ -12,11 +12,21 @@ ADAPT is an engineering prototype. Weaknesses are documented, not hidden.
 
 5. **No claim of educational efficacy.** Engineering benchmarks are not proof that learners learn more.
 
-6. **Heuristic evidence analysis.** The analyzer is deterministic and cue-based. It is not an LLM and can miss free-form explanations that do not match expected cues.
+6. **Heuristic evidence analysis, with optional Gemini interpretation.** The frozen analyzer is deterministic and cue-based. Phase 12 may wrap it with a Gemini evidence workflow. Gemini does not choose strategy or the next challenge. Offline Phase 12 scores used a prompt simulator unless a live key is requested.
 
-7. **Limited concepts.** Only Basic Algebra and Fractions are supported.
+7. **Limited concepts.** Curated multi-domain catalog; not a complete curriculum.
 
 8. **Small challenge bank.** Next-challenge choice is constrained. Unavailable items are surfaced rather than invented.
+
+9. **Phase 12 holdout vs single-prompt baseline is not statistically significant** (n = 30, McNemar p ≈ 0.137). Prompt-version differences were measured; educational efficacy was not.
+
+## Live provider status (added 2026-08-20 freeze audit)
+
+10. **Live Gemini holdout incomplete** (quota/rate limits). Do not claim a full live Gemini 30/30 score or combine Gemini 2.5 / 3.6 partial attempts.
+
+11. **Live NVIDIA holdout incomplete** (provider timeouts on representative probes for `meta/llama-3.3-70b-instruct`). Classify as `LIVE NVIDIA HOLDOUT: INCOMPLETE`, not as 0% extraction accuracy.
+
+12. Offline Phase 12 simulator results remain the reproducible quantitative evidence. Gemini/NVIDIA are optional evidence interpreters; AdaptiveTutor retains adaptive control.
 
 ## Next research steps
 

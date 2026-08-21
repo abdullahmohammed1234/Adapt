@@ -72,6 +72,17 @@ DEFAULT_MAX_STEPS = 10
 MAX_TEXT_LENGTH = 20000
 
 
+def _evidence_source_label(source: str | None) -> str | None:
+    """Learner-facing label. Fallback must never be presented as an LLM result."""
+    from adapt.llm.fallback import LIVE_EVIDENCE_SOURCES, SOURCE_FALLBACK
+
+    if source in LIVE_EVIDENCE_SOURCES:
+        return "AI-assisted evidence analysis"
+    if source == SOURCE_FALLBACK:
+        return "Deterministic fallback evidence analysis"
+    return None
+
+
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -94,19 +105,38 @@ class ProductSession:
     history: list[dict[str, Any]] = field(default_factory=list)
     last_selection: dict[str, Any] | None = None
     concept_id: str | None = None
+    last_workflow: dict[str, Any] | None = None
+    llm_enabled: bool = False
 
 
 class ProductService:
     """Local service boundary around AdaptiveTutor. No independent adaptation."""
 
-    def __init__(self, *, tutor: AdaptiveTutor | None = None, seed: int = DEFAULT_SEED) -> None:
+    def __init__(
+        self,
+        *,
+        tutor: AdaptiveTutor | None = None,
+        seed: int = DEFAULT_SEED,
+        llm_client=None,
+        use_gemini: bool = False,
+        gemini_prompt_id: str | None = None,
+    ) -> None:
         self.seed = int(seed)
-        self.tutor = tutor or AdaptiveTutor(seed=self.seed)
+        self._llm_analyzer = None
+        if llm_client is not None or use_gemini:
+            from adapt.llm.analyzer import LLMEvidenceAnalyzer
+
+            self._llm_analyzer = LLMEvidenceAnalyzer(
+                client=llm_client,
+                prompt_id=gemini_prompt_id,
+            )
+        self.tutor = tutor or AdaptiveTutor(seed=self.seed, analyzer=self._llm_analyzer)
         self._experience_selector = Phase7ChallengeSelector(catalog=CATALOG)
         self._experience_tutor = AdaptiveTutor(
             bank=CATALOG.engine_bank,
             selector=self._experience_selector,
             seed=self.seed,
+            analyzer=self._llm_analyzer,
         )
         self._meta: dict[str, ProductSession] = {}
         self._progress: dict[str, dict[str, float]] = {}
@@ -256,6 +286,7 @@ class ProductService:
             subject_id=subject_id or (spec.subject_id if spec else None),
             learner_id=resolved_learner,
             concept_id=str(concept_id or topic.concept_id),
+            llm_enabled=self._llm_analyzer is not None,
         )
         with self._lock:
             self._meta[session.session_id] = meta
@@ -308,6 +339,10 @@ class ProductService:
                 "challenge_id": current.challenge_id,
                 "learner_id": session.learner_id,
                 "concept_id": session.concept_id,
+                "metadata": {
+                    "approach": approach,
+                    "explanation": explanation if explanation is not None else reasoning,
+                },
             }
             try:
                 step = tutor.submit_response(session_id, payload)
@@ -320,6 +355,11 @@ class ProductService:
             meta.last_submission_key = submission_key
             attempt = attempt_from_step(step, session_id=session_id)
             meta.history.append(attempt.to_dict())
+            if self._llm_analyzer is not None and self._llm_analyzer.last_result is not None:
+                workflow = self._llm_analyzer.last_result
+                meta.last_workflow = workflow.to_dict()
+                meta.history[-1]["llm_workflow"] = meta.last_workflow
+                meta.history[-1]["evidence_source"] = workflow.source
             if meta.runtime == "experience" and self._experience_selector.last_result is not None:
                 meta.last_selection = self._experience_selector.last_result.to_dict()
             learner_key = meta.learner_id or session.learner_id
@@ -387,6 +427,8 @@ class ProductService:
                 "history": list(meta.history),
                 "last_selection": meta.last_selection,
                 "concept_id": meta.concept_id,
+                "last_workflow": meta.last_workflow,
+                "llm_enabled": meta.llm_enabled,
             },
         }
 
@@ -417,6 +459,8 @@ class ProductService:
             history=list(product.get("history") or []),
             last_selection=product.get("last_selection"),
             concept_id=product.get("concept_id"),
+            last_workflow=product.get("last_workflow"),
+            llm_enabled=bool(product.get("llm_enabled")),
         )
         with self._lock:
             self._meta[session.session_id] = meta
@@ -728,13 +772,22 @@ class ProductService:
             "window": 8,
             "policy": "avoid the same challenge in the recent window unless the bank is exhausted or the strategy is REMEDIATE",
         }
+        payload["llm_enabled"] = bool(meta.llm_enabled)
+        payload["evidence_source"] = (meta.last_workflow or {}).get("source")
+        if meta.llm_enabled:
+            source = (meta.last_workflow or {}).get("source")
+            payload["evidence_source_label"] = _evidence_source_label(source)
+        else:
+            payload["evidence_source_label"] = None
         if meta.mode == "demo":
             payload["demo_label"] = DEMO_SCENARIO_LABEL
         return payload
 
     def _public_step(self, step, meta: ProductSession | None = None) -> dict[str, Any]:
         selection = None if meta is None else meta.last_selection
-        return {
+        workflow = None if meta is None else meta.last_workflow
+        source = None if workflow is None else workflow.get("source")
+        payload = {
             "step_number": step.step_number,
             "feedback": feedback_from_evidence(step.evidence),
             "adaptation": adaptation_from_step(step),
@@ -746,7 +799,10 @@ class ProductService:
             "why_this_question": why_this_question(step, selection=selection),
             "explanation": learner_explanation(step),
             "adaptation_view": learner_adaptation_chain(step),
+            "evidence_source": source,
         }
+        payload["evidence_source_label"] = _evidence_source_label(source)
+        return payload
 
     def _step_result_view(self, session, meta: ProductSession, *, include_research: bool) -> dict[str, Any]:
         view = self._session_view(session, meta)
@@ -819,7 +875,16 @@ class ProductService:
         )
 
     def _trace_view(self, session, meta: ProductSession) -> dict[str, Any]:
-        chain = [chain_link(step, include_answers=True) for step in session.traces]
+        chain = []
+        for index, step in enumerate(session.traces):
+            link = chain_link(step, include_answers=True)
+            if index < len(meta.history):
+                workflow = meta.history[index].get("llm_workflow")
+                if workflow:
+                    link["workflow"] = workflow
+                    link["evidence_source"] = workflow.get("source")
+                    link["nodes"] = workflow.get("nodes")
+            chain.append(link)
         return {
             "session_id": session.session_id,
             "topic_id": meta.topic_id,
@@ -840,4 +905,16 @@ class ProductService:
             },
             "journey": session_journey(session),
             "trace_complete": all(item["complete"] for item in chain) if chain else True,
+            "llm_enabled": bool(meta.llm_enabled),
+            "workflow": meta.last_workflow,
+            "workflow_chain": [
+                "Human Input",
+                "Gemini Evidence",
+                "Validation",
+                "Learner State",
+                "Strategy",
+                "Next Challenge",
+            ]
+            if meta.llm_enabled
+            else ["Evidence", "Learner State", "Strategy", "Next Challenge"],
         }
