@@ -9,6 +9,14 @@ export const PRODUCT = {
   loop: ["Answer", "ADAPT notices", "ADAPT adapts", "Your next challenge changes"] as const,
   landingLoop: ["Answer", "ADAPT notices", "ADAPT adapts"] as const,
   researchLoop: ["Evidence", "Learner State", "Strategy", "Challenge Selection"] as const,
+  geminiLoop: [
+    "Human Input",
+    "Gemini Evidence",
+    "Validation",
+    "Learner State",
+    "Strategy",
+    "Next Challenge",
+  ] as const,
   journey: ["Start", "Explore", "Practice", "ADAPT", "Improve"] as const,
   promise:
     "ADAPT demonstrates evidence-sensitive adaptive tutoring behavior. It has not been proven to improve learning.",

@@ -41,6 +41,11 @@ export interface HealthResponse {
   offline: boolean;
   requires_api_key: boolean;
   seed: number;
+  gemini?: {
+    configured: boolean;
+    enabled: boolean;
+    model: string | null;
+  };
 }
 
 export interface CatalogMetrics {
@@ -302,6 +307,8 @@ export interface StepResult {
   explanation: LearnerExplanation;
   adaptation_view: AdaptationChain;
   human_explanation?: Record<string, string>;
+  evidence_source?: string | null;
+  evidence_source_label?: string | null;
 }
 
 export interface ResearchLink {
@@ -349,6 +356,13 @@ export interface ResearchLink {
   human_explanation?: Record<string, string>;
   feedback?: FeedbackView;
   adaptation?: AdaptationView;
+  evidence_source?: string;
+  workflow?: {
+    source?: string;
+    prompt_id?: string;
+    nodes?: Array<{ id: string; name: string; actor: string; purpose: string; status: string }>;
+  };
+  nodes?: Array<{ id: string; name: string; actor: string; purpose: string; status: string }>;
 }
 
 export interface SessionView {
@@ -387,6 +401,9 @@ export interface SessionView {
   demo_label?: string;
   result?: StepResult;
   research?: ResearchLink;
+  llm_enabled?: boolean;
+  evidence_source?: string | null;
+  evidence_source_label?: string | null;
 }
 
 export interface SubmitPayload {
@@ -492,6 +509,9 @@ export interface TraceView {
   };
   journey: JourneyView;
   trace_complete: boolean;
+  llm_enabled?: boolean;
+  workflow?: Record<string, unknown> | null;
+  workflow_chain?: string[];
 }
 
 export interface CounterfactualLearner {

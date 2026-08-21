@@ -108,13 +108,22 @@ class AdaptHandler(BaseHTTPRequestHandler):
         query: dict[str, list[str]],
     ) -> tuple[int, bytes]:
         if method == "GET" and path == "/api/health":
+            from adapt.llm.config import load_settings
+
+            settings = load_settings()
+            llm_enabled = getattr(service, "_llm_analyzer", None) is not None
             return _json_bytes(
                 {
                     "ok": True,
                     "service": "adapt",
-                    "offline": True,
+                    "offline": not llm_enabled,
                     "requires_api_key": False,
                     "seed": service.seed,
+                    "gemini": {
+                        "configured": settings.credentials_present,
+                        "enabled": llm_enabled,
+                        "model": settings.model if settings.credentials_present else None,
+                    },
                 }
             )[:2]
         if method == "GET" and path == "/api/content":
@@ -247,8 +256,16 @@ def create_server(
 
 
 def serve(host: str = DEFAULT_HOST, port: int = DEFAULT_PORT) -> None:
-    server = create_server(host=host, port=port)
+    from adapt.llm.config import load_settings
+
+    settings = load_settings()
+    service = ProductService(use_gemini=settings.credentials_present)
+    server = create_server(host=host, port=port, service=service)
     print(f"ADAPT is running at http://{host}:{port}")
+    if settings.credentials_present:
+        print(f"Gemini evidence workflow enabled ({settings.model}).")
+    else:
+        print("Gemini credentials not configured; using deterministic evidence analysis.")
     try:
         server.serve_forever()
     except KeyboardInterrupt:

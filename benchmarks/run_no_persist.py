@@ -73,7 +73,20 @@ def main() -> int:
 
     nine = run_9(persist=False)
     print_9(nine)
-    return 1 if five.get("failures") or seven.get("failures") or eight.get("failures") or nine.get("failures") else 0
+    print("=== Phase 12 persist=False ===")
+    from benchmarks.phase12.runner import print_summary as print_12
+    from benchmarks.phase12.runner import run_benchmark as run_12
+
+    twelve = run_12(persist=False)
+    print_12(twelve)
+    return (
+        1
+        if five.get("failures")
+        or seven.get("failures")
+        or eight.get("failures")
+        or nine.get("failures")
+        else 0
+    )
 
 
 if __name__ == "__main__":

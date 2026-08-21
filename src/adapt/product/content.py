@@ -20,7 +20,7 @@ ARCHITECTURE = (
     {
         "id": "analyzer",
         "name": "Evidence Analyzer",
-        "summary": "Extracts signals about understanding, confidence, reasoning, and misconceptions.",
+        "summary": "Extracts signals about understanding, confidence, reasoning, and misconceptions. When Gemini is enabled, this step is an LLM evidence workflow plus schema validation; otherwise it is the deterministic analyzer.",
     },
     {
         "id": "state",
@@ -102,6 +102,15 @@ TECHNICAL_EVIDENCE = {
                 "n = 0",
             ],
         },
+        {
+            "id": "12",
+            "title": "Phase 12 — Gemini evidence workflow",
+            "items": [
+                "Gemini interprets learner evidence; ADAPT decides how to adapt",
+                "Structured output is schema-validated before it can enter the engine",
+                "Phase 5 remains INCONCLUSIVE (n = 0)",
+            ],
+        },
     ],
 }
 
@@ -150,10 +159,12 @@ LIMITATIONS = [
     },
     {
         "id": "heuristic",
-        "title": "Heuristic evidence analysis",
+        "title": "Heuristic evidence analysis, with optional Gemini interpretation",
         "detail": (
-            "The Evidence Analyzer is deterministic and cue-based. It is not an LLM "
-            "and can miss explanations that do not match expected reasoning cues."
+            "The frozen Evidence Analyzer is deterministic and cue-based. Phase 12 can wrap it "
+            "with a Gemini evidence-extraction workflow. Gemini does not choose strategy or the "
+            "next challenge. Offline benchmarks use a prompt-conditioned simulator unless a live "
+            "Gemini key is explicitly requested."
         ),
     },
     {
