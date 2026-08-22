@@ -1,5 +1,7 @@
 # Judge demo script (2–3 minutes)
 
+**Superseded for the ML Prompt Engineering video:** `docs/competition/submission/final/demo/JUDGE_DEMO.md` and `docs/competition/submission/final/samples/SAMPLE_VIDEO_SCRIPT.md`.
+
 Deterministic. Uses `AdaptiveTutor`. No API key.
 
 ```bash

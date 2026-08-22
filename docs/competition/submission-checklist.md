@@ -1,5 +1,7 @@
 # Submission checklist
 
+**Superseded for final upload:** use `docs/competition/submission/final/SUBMISSION_CHECKLIST.md`.
+
 Phase 6 competition hardening. Check items only after they are actually done.
 
 - [x] Application launches

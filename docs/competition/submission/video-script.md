@@ -1,5 +1,7 @@
 # Phase 12 video script (~3:00)
 
+**Superseded by** `docs/competition/submission/final/samples/SAMPLE_VIDEO_SCRIPT.md` (explicit same-input single-prompt comparison).
+
 Purpose: show a structured ML/LLM workflow, not “we called Gemini.”
 
 ---
